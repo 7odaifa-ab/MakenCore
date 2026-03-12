@@ -112,13 +112,13 @@ const manager = new PlanBuilder()
         isReverse: false      // الفاتحة → الناس
     })
     .addHifz(
-        7.5,                          // 15 سطراً يومياً (7.5 وجه)
+        7.5,                          // 7.5 سطر يومياً (15 سطر = وجه)
         { surah: 1, ayah: 1 },        // البداية: الفاتحة
         { surah: 2, ayah: 286 }       // اختياري: النهاية عند البقرة
     )
     .addMinorReview(3, WindowMode.GRADUAL)   // مراجعة آخر 3 دروس
     .addMajorReview(
-        15 * 20,                             // 20 درساً يومياً
+        15 * 20,                             // 20 وجه يومياً
         { surah: 1, ayah: 1 }               // اختياري: نقطة البداية
     )
     .stopWhenCompleted()                     // توقف عند انتهاء الحفظ
