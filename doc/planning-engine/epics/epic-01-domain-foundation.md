@@ -29,35 +29,35 @@ The planning engine cannot reliably implement snapping, page alignment, or thema
 ## Backend Tasks
 
 ### 1. Define canonical dataset contract
-- design `QuranAyahReference`
-- define directional index payloads
-- define page boundary and thematic metadata
+- [x] design `QuranAyahReference`
+- [x] define directional index payloads
+- [x] define page boundary and thematic metadata
 
 ### 2. Build dataset import pipeline
-- import from a trusted Mushaf source
-- normalize raw source rows into canonical references
-- generate forward and reverse lookup maps
-- generate cumulative line arrays
+- [x] import from a trusted Mushaf source
+- [x] normalize raw source rows into canonical references
+- [x] generate forward and reverse lookup maps
+- [x] generate cumulative line arrays
 
 ### 3. Validate dataset integrity
-- validate ayah continuity per surah
-- validate page totals and page end markers
-- validate surah end markers
-- validate thematic boundary placements
-- validate symmetry across forward and reverse directions
+- [x] validate ayah continuity per surah
+- [x] validate page totals and page end markers
+- [x] validate surah end markers
+- [x] validate thematic boundary placements
+- [x] validate symmetry across forward and reverse directions
 
 ### 4. Refactor Quran repository
-- split responsibilities into reference lookup and directional traversal
-- expose fast lookup methods for:
-  - ayah by location
-  - location by index
-  - lines between two locations
-  - page metadata lookup
+- [x] split responsibilities into reference lookup and directional traversal
+- [x] expose fast lookup methods for:
+  - [x] ayah by location
+  - [x] location by index
+  - [x] lines between two locations
+  - [x] page metadata lookup
 
 ### 5. Add fixture and snapshot tests
-- test sample surah sequences
-- test page boundary outputs
-- test directional mapping consistency
+- [x] test sample surah sequences
+- [x] test page boundary outputs
+- [x] test directional mapping consistency
 
 ## Acceptance Criteria
 - Dataset can be generated deterministically from source data
