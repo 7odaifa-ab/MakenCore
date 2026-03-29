@@ -12,6 +12,8 @@ import { AyahIntegrityRule } from '../domain/planning/rules/handlers/AyahIntegri
 import { SurahSnapRule } from '../domain/planning/rules/handlers/SurahSnapRule';
 import { PageAlignmentRule } from '../domain/planning/rules/handlers/PageAlignmentRule';
 import { ReferenceRepository } from '../domain/mushaf/repositories/ReferenceRepository';
+import { LoadBalancerService } from '../domain/planning/services/LoadBalancerService';
+import { DailyLoadWeights, TrackDefinition, TrackType } from '../domain/planning/entities/PlanConfig';
 
 export interface ManagerConfig {
     startDate: string;
@@ -19,6 +21,8 @@ export interface ManagerConfig {
     daysPerWeek: number;
     limitDays: number;
     isReverse: boolean;
+    catchUpDayOfWeek?: number; // Epic 3
+    holidays?: string[];       // Epic 3: 'YYYY-MM-DD'
 }
 
 export type StopCondition = (tracks: Map<number, ITrack>) => boolean;
@@ -62,6 +66,15 @@ export class TrackManager {
         return this.tracks.get(id);
     }
 
+    // Epic 3 Load Balancer configuration
+    private loadWeights: DailyLoadWeights | null = null;
+    private trackDefs: TrackDefinition[] = [];
+
+    setLoadBalancing(weights: DailyLoadWeights, tracks: TrackDefinition[]) {
+        this.loadWeights = weights;
+        this.trackDefs = tracks;
+    }
+
     getConstraintManager() {
         return this.constraintManager;
     }
@@ -94,6 +107,23 @@ export class TrackManager {
             if (endDateObj && currentDate > endDateObj) break;
             if (dayCounter > 5000) break;
 
+            // Epic 3: Skip calculation and emit empty day if Custom Holiday
+            const dateStr = currentDate.toISOString().split('T')[0];
+            if (this.config.holidays && this.config.holidays.includes(dateStr)) {
+                plan.push({
+                    dayNum: dayCounter,
+                    date: new Date(currentDate),
+                    is_off: true,
+                    events: []
+                });
+                dayCounter++;
+                currentDate = DateUtils.addDays(currentDate, 1);
+                while (!DateUtils.isWorkingDay(currentDate, this.config.daysPerWeek)) {
+                    currentDate = DateUtils.addDays(currentDate, 1);
+                }
+                continue;
+            }
+
             // Build context (Pass injected repo down to context)
             const dayContext = new PlanContext(
                 currentDate,
@@ -113,11 +143,32 @@ export class TrackManager {
                 events: [] // Empty event container
             };
 
+            // Epic 3: Load Balancing Application
+            let trackAllowances = new Map<number, number>();
+            if (this.loadWeights && this.trackDefs.length > 0) {
+                const balancer = new LoadBalancerService();
+                const isCatchUp = this.config.catchUpDayOfWeek !== undefined && currentDate.getDay() === this.config.catchUpDayOfWeek;
+                const allowances = balancer.calculateDailyAllowance(this.trackDefs, this.loadWeights, isCatchUp);
+                allowances.forEach(a => trackAllowances.set(a.trackId, a.allowedLines));
+            }
+
             // Execute tracks in ascending id order — enforces HIFZ(1)→MINOR(2)→MAJOR(3).
             // WindowStrategy depends on Hifz history already being committed before it runs.
             // Sorting here makes that invariant explicit and safe regardless of addTrack() order.
             for (const track of [...this.tracks.values()].sort((a, b) => a.id - b.id)) {
+                
+                // If there's a dynamic allowance, override the track config temporarily
+                const originalLines = (track as any).config.dailyLines;
+                if (trackAllowances.has(track.id)) {
+                    (track as any).config.dailyLines = trackAllowances.get(track.id);
+                }
+
                 const rawStep = track.calculateNextStep(dayContext);
+
+                // Restore
+                if (trackAllowances.has(track.id)) {
+                    (track as any).config.dailyLines = originalLines;
+                }
 
                 if (rawStep) {
                     // Epic 2: Pass candidate through rule pipeline

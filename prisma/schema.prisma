@@ -1,0 +1,129 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Plan {
+  id          String   @id @default(uuid())
+  title       String? 
+  userId      String? 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  startDate   DateTime
+  endDate     DateTime?
+  
+  tracks      PlanTrack[]
+  days        PlanDay[]
+  folderId    String?
+  folder      PlanFolder?  @relation(fields: [folderId], references: [id])
+  
+  shareCodes  ShareCode[]
+
+  @@map("plans")
+}
+
+model PlanFolder {
+  id        String   @id @default(uuid())
+  name      String
+  userId    String 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  plans     Plan[]
+
+  @@map("plan_folders")
+}
+
+model PlanTrack {
+  id            String   @id @default(uuid())
+  planId        String
+  plan          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  trackType     String   // e.g., HIFZ, MINOR_REVIEW, MAJOR_REVIEW
+  dailyLines    Int      @default(15) 
+  
+  startSurah    Int
+  startAyah     Int
+  endSurah      Int?
+  endAyah       Int?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("plan_tracks")
+}
+
+model PlanDay {
+  id        String   @id @default(uuid())
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  dayNum    Int
+  date      DateTime
+  
+  events    PlanEvent[]
+
+  @@map("plan_days")
+}
+
+model PlanEvent {
+  id          String   @id @default(uuid())
+  dayId       String
+  day         PlanDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  
+  trackId     String   // Maps to PlanTrack.id or internal trackId enum
+  trackName   String
+  
+  startSurah  Int
+  startAyah   Int
+  startLine   Int?
+  
+  endSurah    Int
+  endAyah     Int
+  endLine     Int?
+  
+  isReset     Boolean  @default(false)
+  metadata    Json?    
+
+  @@map("plan_events")
+}
+
+model PlanPreset {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  config      Json     
+  createdAt   DateTime @default(now())
+  
+  @@map("plan_presets")
+}
+
+model MushafReference {
+  id         Int      @id @default(autoincrement())
+  surahId    Int
+  ayahId     Int
+  pageNum    Int
+  lineNum    Int
+  text       String?  
+  globalAyah Int
+
+  @@map("mushaf_references")
+}
+
+model ShareCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("share_codes")
+}

@@ -26,34 +26,34 @@ The target product is not a single-track memorization simulator. It is a multi-t
 ## Backend Tasks
 
 ### 1. Define plan and track configuration models
-- create plan definition entity
-- create track definition entity
-- define track type enum
-- define direction enum
-- define daily load weights
+- [x] create plan definition entity
+- [x] create track definition entity
+- [x] define track type enum
+- [x] define direction enum
+- [x] define daily load weights
 
 ### 2. Build balancing service
-- calculate weighted load for each day
-- reduce review load automatically when memorization load rises
-- support configurable weights
-- keep balancing deterministic
+- [x] calculate weighted load for each day
+- [x] reduce review load automatically when memorization load rises
+- [x] support configurable weights
+- [x] keep balancing deterministic
 
 ### 3. Extend constraint system
-- review cannot overtake memorized progress
-- secondary review cannot exceed horizon
-- catch-up day suppresses memorization when configured
-- reverse direction constraints remain symmetric
+- [x] review cannot overtake memorized progress
+- [x] secondary review cannot exceed horizon
+- [x] catch-up day suppresses memorization when configured
+- [x] reverse direction constraints remain symmetric
 
 ### 4. Add working-day and catch-up support
-- support weekdays only plans
-- support custom holiday dates
-- support catch-up day expansion rules
+- [x] support weekdays only plans
+- [x] support custom holiday dates
+- [x] support catch-up day expansion rules
 
 ### 5. Expand simulator tests
-- verify mixed-track schedules
-- verify review and memorization interaction
-- verify reverse-direction scheduling
-- verify off-day and catch-up behavior
+- [x] verify mixed-track schedules
+- [x] verify review and memorization interaction
+- [x] verify reverse-direction scheduling
+- [x] verify off-day and catch-up behavior
 
 ## Acceptance Criteria
 - Multi-track plans are valid and deterministic
