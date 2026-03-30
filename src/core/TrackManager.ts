@@ -5,12 +5,13 @@ import { ConstraintManager } from '../constraints/ConstraintManager';
 import { QuranRepository } from './QuranRepository'; // Type only!
 import { DateUtils } from '../utils/DateUtils';
 import { PlanDay, PlanEvent } from './types';
-import { EventType } from './constants'; // 👈 Import Enum
+import { EventType } from './constants'; // Import Enum
 import { RuleEngine } from '../domain/planning/rules/RuleEngine';
 import { RuleContext, RuleCandidate } from '../domain/planning/rules/RuleInterface';
 import { AyahIntegrityRule } from '../domain/planning/rules/handlers/AyahIntegrityRule';
 import { SurahSnapRule } from '../domain/planning/rules/handlers/SurahSnapRule';
 import { PageAlignmentRule } from '../domain/planning/rules/handlers/PageAlignmentRule';
+import { BalanceCorrectionRule, ThematicHaltingRule } from '../domain/planning/rules/handlers/OtherRules';
 import { ReferenceRepository } from '../domain/mushaf/repositories/ReferenceRepository';
 import { LoadBalancerService } from '../domain/planning/services/LoadBalancerService';
 import { DailyLoadWeights, TrackDefinition, TrackType } from '../domain/planning/entities/PlanConfig';
@@ -54,7 +55,9 @@ export class TrackManager {
         this.ruleEngine = new RuleEngine([
             new AyahIntegrityRule(),
             new SurahSnapRule(),
-            new PageAlignmentRule()
+            new PageAlignmentRule(),
+            new ThematicHaltingRule(),
+            new BalanceCorrectionRule()
         ]);
     }
 

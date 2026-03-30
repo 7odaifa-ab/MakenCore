@@ -15,7 +15,15 @@ import { findExponentialStopIndex } from '../../../utils/Algorithms';
 export interface DirectionData {
     index_map: Record<string, number>;
     cumulative_array: Float32Array;
-    reverse_index: readonly { surah: number, ayah: number, is_end: boolean, page?: number, is_page_end?: boolean }[];
+    reverse_index: readonly {
+        surah: number,
+        ayah: number,
+        is_end: boolean,
+        page?: number,
+        is_page_end?: boolean,
+        thematic_break_type?: 'QUARTER' | 'HIZB' | 'JUZ' | 'SAJDAH' | 'NONE',
+        thematic_break?: boolean
+    }[];
 }
 
 /**
@@ -87,7 +95,12 @@ export class ReferenceRepository {
         return map[key];
     }
 
-    public getLocationFromIndex(index: number, map: Record<string, number>): LocationObj & { page?: number, is_page_end?: boolean } {
+    public getLocationFromIndex(index: number, map: Record<string, number>): LocationObj & {
+        page?: number,
+        is_page_end?: boolean,
+        thematic_break_type?: 'QUARTER' | 'HIZB' | 'JUZ' | 'SAJDAH' | 'NONE',
+        thematic_break?: boolean
+    } {
         let lookupArray;
 
         if (map === this.data.forward.index_map) {
@@ -104,7 +117,15 @@ export class ReferenceRepository {
             return { surah: 1, ayah: 1, is_end: false };
         }
 
-        return { surah: loc.surah, ayah: loc.ayah, is_end: loc.is_end, page: loc.page, is_page_end: loc.is_page_end };
+        return {
+            surah: loc.surah,
+            ayah: loc.ayah,
+            is_end: loc.is_end,
+            page: loc.page,
+            is_page_end: loc.is_page_end,
+            thematic_break_type: loc.thematic_break_type,
+            thematic_break: loc.thematic_break
+        };
     }
 
     public getLinesBetween(

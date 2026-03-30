@@ -45,7 +45,66 @@ async function runTests() {
     assert(computedEndingFlags === maxPage, `Expected ${maxPage} page end flags, got ${computedEndingFlags}`);
     console.log("✓ Page validation passed.");
 
-    // 3. Validate symmetry across forward and reverse directions
+    // 3. Validate thematic metadata integrity and category coverage
+    console.log("Validating thematic metadata integrity...");
+    const allowedTypes = new Set(['QUARTER', 'HIZB', 'JUZ', 'SAJDAH', 'NONE']);
+    const thematicCounts: Record<string, number> = {
+        QUARTER: 0,
+        HIZB: 0,
+        JUZ: 0,
+        SAJDAH: 0,
+        NONE: 0
+    };
+
+    for (const loc of fw as any[]) {
+        const type = loc.thematic_break_type ?? 'NONE';
+        assert(allowedTypes.has(type), `Invalid thematic break type: ${type}`);
+
+        thematicCounts[type] = (thematicCounts[type] || 0) + 1;
+
+        if (type === 'NONE') {
+            assert(loc.thematic_break === false, `thematic_break should be false when type is NONE at ${loc.surah}:${loc.ayah}`);
+        } else {
+            assert(loc.thematic_break === true, `thematic_break should be true when type is ${type} at ${loc.surah}:${loc.ayah}`);
+        }
+    }
+
+    assert(thematicCounts.JUZ > 0, 'Expected at least one JUZ thematic boundary');
+    assert(thematicCounts.HIZB > 0, 'Expected at least one HIZB thematic boundary');
+    console.log("✓ Thematic metadata validation passed.");
+
+    // 4. Validate page total weighted lines are close to 15
+    console.log("Validating weighted line totals per page...");
+    const pageLineTotals = new Map<number, number>();
+    for (const loc of fw as any[]) {
+        const lines = Number(loc.lines_count ?? 0);
+        pageLineTotals.set(loc.page, (pageLineTotals.get(loc.page) || 0) + lines);
+    }
+
+    let minPageLines = Number.POSITIVE_INFINITY;
+    let maxPageLines = Number.NEGATIVE_INFINITY;
+    let minPageNumber = -1;
+    let maxPageNumber = -1;
+
+    for (const [page, total] of pageLineTotals.entries()) {
+        if (total < minPageLines) {
+            minPageLines = total;
+            minPageNumber = page;
+        }
+        if (total > maxPageLines) {
+            maxPageLines = total;
+            maxPageNumber = page;
+        }
+
+        assert(total >= 6 && total <= 15.5, `Page ${page} expected weighted lines within canonical bounds, got ${total.toFixed(4)}`);
+    }
+
+    assert(minPageLines < 10, `Expected at least one short page (<10 weighted lines), got min=${minPageLines.toFixed(4)} at page ${minPageNumber}`);
+    assert(maxPageLines >= 14.5, `Expected at least one full page (~15 weighted lines), got max=${maxPageLines.toFixed(4)} at page ${maxPageNumber}`);
+
+    console.log("✓ Page weighted-lines validation passed.");
+
+    // 5. Validate symmetry across forward and reverse directions
     console.log("Validating symmetry across forward and reverse directions...");
     assert(fw.length === rev.length, `Length mismatch: fwd=${fw.length}, rev=${rev.length}`);
     

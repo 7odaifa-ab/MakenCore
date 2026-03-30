@@ -15,12 +15,44 @@ interface HafsVerse {
     aya_text_emlaey: string;
 }
 
-type ThematicBreakType = 'QUARTER' | 'SAJDAH' | 'NONE';
+type ThematicBreakType = 'QUARTER' | 'HIZB' | 'JUZ' | 'SAJDAH' | 'NONE';
 
 function resolveThematicBreakType(ayahText: string): ThematicBreakType {
     if (ayahText.includes('۞')) return 'QUARTER';
     if (ayahText.includes('۩')) return 'SAJDAH';
     return 'NONE';
+}
+
+function parsePairsFromQuranDataJs(content: string, arrayName: string): Array<[number, number]> {
+    const blockRegex = new RegExp(`QuranData\\.${arrayName}\\s*=\\s*\\[(.*?)\\];`, 's');
+    const blockMatch = content.match(blockRegex);
+    if (!blockMatch) return [];
+
+    const pairs: Array<[number, number]> = [];
+    const pairRegex = /\[(\d+)\s*,\s*(\d+)\]/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = pairRegex.exec(blockMatch[1])) !== null) {
+        pairs.push([Number(match[1]), Number(match[2])]);
+    }
+
+    return pairs;
+}
+
+function parseSajdaPairsFromQuranDataJs(content: string): Set<string> {
+    const blockRegex = /QuranData\.Sajda\s*=\s*\[(.*?)\];/s;
+    const blockMatch = content.match(blockRegex);
+    if (!blockMatch) return new Set<string>();
+
+    const set = new Set<string>();
+    const pairRegex = /\[(\d+)\s*,\s*(\d+)\s*,/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = pairRegex.exec(blockMatch[1])) !== null) {
+        set.add(`${Number(match[1])}:${Number(match[2])}`);
+    }
+
+    return set;
 }
 
 export function generateHafsCanonicalDataset(jsonPath: string, outputPath: string) {
@@ -29,6 +61,16 @@ export function generateHafsCanonicalDataset(jsonPath: string, outputPath: strin
     }
 
     const rawData: HafsVerse[] = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    const quranMetaJsPath = path.resolve(__dirname, '../../../../src/data/quran-data.js');
+    const quranMetaJs = fs.existsSync(quranMetaJsPath) ? fs.readFileSync(quranMetaJsPath, 'utf8') : '';
+
+    const juzStarts = new Set(parsePairsFromQuranDataJs(quranMetaJs, 'Juz').map(([s, a]) => `${s}:${a}`));
+    const quarterStarts = parsePairsFromQuranDataJs(quranMetaJs, 'HizbQaurter');
+    const quarterIndexByKey = new Map<string, number>();
+    quarterStarts.forEach(([s, a], idx) => {
+        quarterIndexByKey.set(`${s}:${a}`, idx + 1);
+    });
+    const sajdaStarts = parseSajdaPairsFromQuranDataJs(quranMetaJs);
     
     // Sort array by ID to ensure correct sequential order
     rawData.sort((a, b) => a.id - b.id);
@@ -66,7 +108,17 @@ export function generateHafsCanonicalDataset(jsonPath: string, outputPath: strin
         const isSurahEnd = (i === rawData.length - 1) || (rawData[i + 1].sora !== verse.sora);
         const isPageEnd = (i === rawData.length - 1) || (rawData[i + 1].page !== verse.page);
         
-        const thematicBreakType = resolveThematicBreakType(verse.aya_text);
+        const key = `${verse.sora}:${verse.aya_no}`;
+        const quarterIndex = quarterIndexByKey.get(key);
+
+        const thematicBreakType: ThematicBreakType =
+            (juzStarts.has(key) && key !== '1:1')
+                ? 'JUZ'
+                : quarterIndex !== undefined
+                    ? (quarterIndex % 4 === 0 ? 'HIZB' : 'QUARTER')
+                    : (sajdaStarts.has(key)
+                        ? 'SAJDAH'
+                        : resolveThematicBreakType(verse.aya_text));
         const hasThematicMark = thematicBreakType !== 'NONE';
         
         // Calculate lines weight, handling shared lines proportionally

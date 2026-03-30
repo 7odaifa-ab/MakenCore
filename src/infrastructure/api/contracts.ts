@@ -1,74 +1,84 @@
-export interface GeneratePreviewRequestDTO {
-    tracks: TrackConfigDTO[];
+export type PlanDirection = 'FORWARD' | 'REVERSE';
+export type TrackType = 'HIFZ' | 'MINOR_REVIEW' | 'MAJOR_REVIEW' | 'STABILIZATION' | 'CUSTOM';
+export type DayType = 'WORKING' | 'OFF' | 'CATCH_UP';
+export type EventType = 'MEMORIZATION' | 'REVIEW' | 'BREAK' | 'CATCH_UP';
+
+export interface CreatePlanPreviewRequestDTO {
+    name: string;
     startDate: string;
-    workingDays: number[];
-    maxDaysToSimulate: number;
+    direction: PlanDirection;
+    daysPerWeek: number;
+    catchUpDay?: number;
+    tracks: TrackConfigDTO[];
 }
 
 export interface TrackConfigDTO {
-    trackType: string;
-    startPoint: LocationDTO;
-    endPoint?: LocationDTO;
-    dailyLines: number;
-    priority?: number;
-    color?: string;
+    type: TrackType;
+    priority: number;
+    amountUnit: 'LINES' | 'PAGES' | 'LESSONS' | 'CUSTOM';
+    amountValue: number;
+    start?: LocationDTO;
+    end?: LocationDTO;
+    config?: Record<string, any>;
 }
 
 export interface LocationDTO {
-    surahId: number;
-    ayahId: number;
-}
-
-export interface GeneratePreviewResponseDTO {
-    planDays: PlanDayDTO[];
-    summary: PlanSummaryDTO;
-    errors?: string[];
-    warnings?: string[];
-}
-
-export interface PlanDayDTO {
-    dayNum: number;
-    date: string;
-    events: PlanEventDTO[];
+    surah: number;
+    ayah: number;
 }
 
 export interface PlanEventDTO {
-    trackId: string;
-    trackName: string;
+    trackType: TrackType;
+    eventType: EventType;
     start: LocationDTO;
     end: LocationDTO;
-    metadata?: any;
+    linesCount: number;
+    appliedRules?: string[];
 }
 
-export interface PlanSummaryDTO {
-    totalDays: number;
-    tracksSummary: Record<string, TrackSummaryDTO>;
+export interface PlanDayDTO {
+    dayNumber: number;
+    date: string;
+    dayType: DayType;
+    totalLoad: number;
+    events: PlanEventDTO[];
 }
 
-export interface TrackSummaryDTO {
-    completedLines: number;
-    estimatedCompletionDate?: string;
-}
-
-export interface FinalizePlanRequestDTO {
-    previewId: string; // ID from preview generation
-    title: string;
-    folderId?: string;
-}
-
-export interface FinalizePlanResponseDTO {
-    planId: string;
-    shareCode?: string;
+export interface CreatePlanPreviewResponseDTO {
     success: boolean;
+    data: {
+        estimatedCompletionDate: string;
+        totalDays: number;
+        plan: PlanDayDTO[];
+    };
+}
+
+export interface GenerateFinalPlanRequestDTO extends CreatePlanPreviewRequestDTO {
+    presetId?: string;
+}
+
+export interface GenerateFinalPlanResponseDTO {
+    success: boolean;
+    data: {
+        planId: string;
+        status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
+        shareCode: string | null;
+    };
 }
 
 export interface EstimateCompletionRequestDTO {
-    trackConfig: TrackConfigDTO;
+    startDate: string;
+    daysPerWeek: number;
+    direction: PlanDirection;
+    tracks: TrackConfigDTO[];
 }
 
 export interface EstimateCompletionResponseDTO {
-    estimatedDays: number;
-    endLocation: LocationDTO;
+    success: boolean;
+    data: {
+        estimatedCompletionDate: string;
+        estimatedDays: number;
+    };
 }
 
 export interface ExportRequestDTO {
@@ -78,13 +88,19 @@ export interface ExportRequestDTO {
 }
 
 export interface DatasetValidationDTO {
-    version: string;
-    mushafType: string;
+    datasetVersion?: string;
 }
 
 export interface DatasetValidationResponseDTO {
-    isValid: boolean;
-    errors: string[];
-    surahCount: number;
-    totalAyahs: number;
+    success: boolean;
+    data: {
+        valid: boolean;
+        checks: Array<{ name: string; passed: boolean }>;
+    };
 }
+
+// Backward-compatible aliases for older naming in existing integrations.
+export type GeneratePreviewRequestDTO = CreatePlanPreviewRequestDTO;
+export type GeneratePreviewResponseDTO = CreatePlanPreviewResponseDTO;
+export type FinalizePlanRequestDTO = GenerateFinalPlanRequestDTO;
+export type FinalizePlanResponseDTO = GenerateFinalPlanResponseDTO;

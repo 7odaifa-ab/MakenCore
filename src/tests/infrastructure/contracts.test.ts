@@ -9,22 +9,26 @@ async function runTests() {
 
     // Test 1: GeneratePreviewRequestDTO structure
     const payload: GeneratePreviewRequestDTO = {
+        name: 'Ramadan Plan',
+        direction: 'FORWARD',
+        daysPerWeek: 5,
+        catchUpDay: 6,
         tracks: [
             {
-                trackType: 'HIFZ',
-                startPoint: { surahId: 1, ayahId: 1 },
-                dailyLines: 15,
-                priority: 1
+                type: 'HIFZ',
+                priority: 1,
+                amountUnit: 'LINES',
+                amountValue: 15,
+                start: { surah: 1, ayah: 1 },
+                end: { surah: 2, ayah: 286 }
             }
         ],
-        startDate: '2026-03-30',
-        workingDays: [0, 1, 2, 3, 4],
-        maxDaysToSimulate: 30
+        startDate: '2026-03-30'
     };
 
     assert(payload.tracks !== undefined, "Expected tracks property");
-    assert(payload.tracks[0].trackType === 'HIFZ', "Expected trackType to be HIFZ");
-    assert(payload.tracks[0].startPoint.surahId === 1, "Expected startPoint surahId 1");
+    assert(payload.tracks[0].type === 'HIFZ', "Expected type to be HIFZ");
+    assert(payload.tracks[0].start?.surah === 1, "Expected start surah 1");
     console.log("✓ GeneratePreviewRequestDTO shape valid");
 
     // Test 2: ExportRequestDTO structure
@@ -41,37 +45,35 @@ async function runTests() {
 
     // Test 3: GeneratePreviewResponseDTO shape
     const response: GeneratePreviewResponseDTO = {
-        planDays: [
-            {
-                dayNum: 1,
-                date: '2026-03-30',
-                events: [
-                    {
-                        trackId: 'HIFZ',
-                        trackName: 'Hifz Track',
-                        start: { surahId: 1, ayahId: 1 },
-                        end: { surahId: 1, ayahId: 7 },
-                        metadata: {
-                            reason: 'Snap rule applied'
-                        }
-                    }
-                ]
-            }
-        ],
-        summary: {
+        success: true,
+        data: {
+            estimatedCompletionDate: '2026-04-30',
             totalDays: 1,
-            tracksSummary: {
-                'HIFZ': {
-                    completedLines: 15,
-                    estimatedCompletionDate: '2026-04-30'
+            plan: [
+                {
+                    dayNumber: 1,
+                    date: '2026-03-30',
+                    dayType: 'WORKING',
+                    totalLoad: 15,
+                    events: [
+                        {
+                            trackType: 'HIFZ',
+                            eventType: 'MEMORIZATION',
+                            start: { surah: 1, ayah: 1 },
+                            end: { surah: 1, ayah: 7 },
+                            linesCount: 15,
+                            appliedRules: ['AyahIntegrityRule', 'PageAlignmentRule']
+                        }
+                    ]
                 }
-            }
+            ]
         }
     };
 
-    assert(response.planDays.length === 1, "Expected 1 plan day");
-    assert(response.planDays[0].events[0].metadata !== undefined, "Expected metadata");
-    assert(response.planDays[0].events[0].metadata.reason === 'Snap rule applied', "Expected snap rule reason");
+    assert(response.success === true, "Expected success=true");
+    assert(response.data.plan.length === 1, "Expected 1 plan day");
+    assert(response.data.plan[0].events[0].appliedRules !== undefined, "Expected appliedRules");
+    assert(response.data.plan[0].events[0].appliedRules?.includes('PageAlignmentRule') === true, "Expected PageAlignmentRule in appliedRules");
     console.log("✓ GeneratePreviewResponseDTO shape valid");
 
     console.log("✓ All Epic 4 API Contract tests passed!");

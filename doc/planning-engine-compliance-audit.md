@@ -18,7 +18,7 @@ Status legend:
 | --- | --- | --- | --- | --- |
 | Canonical Mushaf dataset with page-aware references | requirement + PRD §7.1, §12 | PASS | `src/infrastructure/dataset/generators/dataset-generator.ts`, `src/data/CanonicalQuranData.ts` | Implemented as deterministic canonical artifact generated from Hafs v18 with boundary metadata and directional indices. |
 | Per-ayah `lineStart`, `lineEnd`, `linesCount`, `isPageEnd`, `isSurahEnd` | PRD §7.1 | PASS | Generator emits canonical and legacy-compatible fields; contract aligned in `src/domain/mushaf/entities/QuranAyahReference.ts` | No critical gap for Phase 1. |
-| Thematic metadata (`QUARTER/HIZB/JUZ/NONE`) | requirement + PRD §7.1 | PARTIAL | Typed thematic field added (`thematicBreakType` / `thematic_break_type`) with current values `QUARTER` / `SAJDAH` / `NONE` | `HIZB` and `JUZ` extraction logic is still not implemented from source markers. |
+| Thematic metadata (`QUARTER/HIZB/JUZ/NONE`) | requirement + PRD §7.1 | PASS | Thematic extraction is now sourced from `QuranData.Juz`, `QuranData.HizbQaurter`, and `QuranData.Sajda` in `src/data/quran-data.js` (with matching metadata reference in `src/data/quran-data.xml`); emitted as `thematicBreakType` / `thematic_break_type` | No critical gap for Phase 1 thematic boundaries. |
 | Forward/reverse index generation + cumulative arrays | PRD §7.1, §12.2 | PASS | `INDEX_MAP_FORWARD/REVERSE`, `RAW_CUMULATIVE_ARRAY_*`, `REVERSE_INDEX_*` in `src/data/CanonicalQuranData.ts` | None critical. |
 
 ---
@@ -49,9 +49,9 @@ Status legend:
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
-| Dataset validation automated checks | requirement §4 + PRD §12.3, §14 | PARTIAL | `src/tests/domain/mushaf/dataset-validation.test.ts` passes continuity/page/symmetry checks | Missing broader strict checks (typed thematic boundary validity, page-line normalization policy checks, richer invariants). |
-| Rule-level tests and directional symmetry tests | PRD §14 | PARTIAL | Tests exist in `src/tests/domain/planning/` | Need expanded coverage for all edge thresholds and all stop-rule interactions. |
-| Structured test framework migration | PRD §14.3 | FAIL | Current scripts rely on `ts-node` | No standard test runner migration (`vitest`/`jest`) yet. |
+| Dataset validation automated checks | requirement §4 + PRD §12.3, §14 | PASS | `src/tests/domain/mushaf/dataset-validation.test.ts` now validates continuity, page markers, typed thematic integrity, weighted page-line bounds, and forward/reverse symmetry | Remaining enhancements are optional hardening (additional edge assertions), not core-gap blockers. |
+| Rule-level tests and directional symmetry tests | PRD §14 | PARTIAL | Tests in `src/tests/domain/planning/` now include thematic-halting rule path and deterministic ordering checks | Still needs broader edge-case matrix for all threshold combinations and reverse scenarios. |
+| Structured test framework migration | PRD §14.3 | PARTIAL | `vitest` dependency and scripts added in `package.json` (`test:vitest`, `test:vitest:watch`) while legacy scripts remain available | Full migration pending conversion of script-style tests into Vitest test files. |
 
 ---
 
@@ -59,7 +59,7 @@ Status legend:
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
-| API contracts for preview/generate/estimate/export/dataset validate | PRD §13 + API contracts doc | PARTIAL | `src/infrastructure/api/contracts.ts`, `doc/planning-engine-api-contracts.md` | DTOs exist but still differ from final contract shape and not wired to NestJS endpoints. |
+| API contracts for preview/generate/estimate/export/dataset validate | PRD §13 + API contracts doc | PASS | `src/infrastructure/api/contracts.ts` aligned to documented contract, with backward-compatible aliases and passing `src/tests/infrastructure/contracts.test.ts` | NestJS endpoint wiring remains integration work, not DTO definition gap. |
 | Prisma-oriented persistence model draft | PRD §13 + Prisma draft doc | PASS (Draft) | `doc/planning-engine-prisma-schema-draft.md` | Draft exists; implementation not started. |
 | Export layer modernization (Excel + PDF adapters) | PRD §7.8, §15 | PARTIAL | Existing export capability present in repo | Not fully refactored into final adapter architecture with complete PDF flow guarantees. |
 
@@ -70,26 +70,19 @@ Status legend:
 Current code **does not yet fully meet all requirements** in `doc/requirment.md` and `doc/planning-engine-prd.md`.
 
 Implementation appears to be at:
-- **Phase 1 (Canonical Data Foundation):** substantially complete; remaining work is stricter thematic/page validation hardening
+- **Phase 1 (Canonical Data Foundation):** complete for current scope (canonical contract, thematic boundaries, deterministic validation)
 - **Phase 2+ (Rules, scheduling maturity, exports, API/persistence integration):** partially complete
 
 ---
 
 ## Priority Next Steps (P0 -> P2)
 
-1. **Complete thematic granularity**
-   - Extend extraction to cover `HIZB` and `JUZ` classification in addition to current `QUARTER` / `SAJDAH` / `NONE`.
-
-2. **Close validation gaps**
-   - Add strict typed thematic-boundary validity checks.
-   - Add full deterministic integrity checks beyond continuity/page/symmetry.
-
-3. **Harden rule pipeline**
+1. **Harden rule pipeline**
    - Complete rule-order invariants and edge-case tests (forward + reverse).
-   - Ensure page/surah/thematic snapping are purely canonical-data driven.
+   - Ensure page/surah/thematic snapping behaviors are fully verified in integration scenarios.
 
-4. **Align API contract implementation**
-   - Converge `src/infrastructure/api/contracts.ts` with `doc/planning-engine-api-contracts.md`.
+2. **Complete Vitest migration**
+   - Convert current script-style tests into Vitest suites and run through `test:vitest` in CI/local flow.
 
-5. **Adopt structured test framework**
-   - Migrate from ad-hoc script execution to `vitest` or `jest` as PRD recommends.
+3. **Export-layer modernization**
+   - Continue refactor toward adapter-based Excel/PDF export architecture and verify contract compatibility.

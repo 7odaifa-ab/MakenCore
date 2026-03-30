@@ -11,6 +11,8 @@ export interface LocationObj {
     is_end: boolean;
     page?: number;
     is_page_end?: boolean;
+    thematic_break_type?: 'QUARTER' | 'HIZB' | 'JUZ' | 'SAJDAH' | 'NONE';
+    thematic_break?: boolean;
 }
 
 /**

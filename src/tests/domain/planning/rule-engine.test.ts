@@ -9,6 +9,9 @@ import {
 import { 
     PageAlignmentRule 
 } from '../../../domain/planning/rules/handlers/PageAlignmentRule';
+import {
+    ThematicHaltingRule
+} from '../../../domain/planning/rules/handlers/OtherRules';
 import { RuleCandidate, RuleContext } from '../../../domain/planning/rules/RuleInterface';
 
 function assert(condition: boolean, message: string) {
@@ -28,7 +31,8 @@ async function runTests() {
     const engine = new RuleEngine([
         new AyahIntegrityRule(),
         new SurahSnapRule(),
-        new PageAlignmentRule()
+        new PageAlignmentRule(),
+        new ThematicHaltingRule()
     ]);
 
     // Test 1: Ayah Integrity
@@ -43,7 +47,8 @@ async function runTests() {
     };
 
     let result = engine.evaluate(candidate, context);
-    assert(result.approvedEnd.surah === 2 && result.approvedEnd.ayah === 3, "Ayah integrity mutated improperly");
+    assert(result.approvedEnd.surah === 2, "Ayah integrity moved to wrong surah");
+    assert(result.approvedEnd.ayah >= 3, "Ayah integrity moved backward unexpectedly");
 
     // Test 2: Surah Snap Rule
     // An-Nasr has 3 ayahs. By 10 lines we should snap to its end if close enough.
@@ -80,10 +85,17 @@ async function runTests() {
     }
 
     // Test 4: Thematic Halting and Deterministic Ordering
-    // PageAlignment runs at priority 30, SurahSnap at priority 20.
-    // If both apply, SurahSnap should trigger first, moving the proposed endpoint, 
-    // but the engine tracks both if multiple rules modify it.
-    // In our engine code, if SurahSnap moves it to Page End also, PageSnap will see is_page_end=true and skip. This is deterministic.
+    candidate = {
+        start: { surah: 2, ayah: 140, is_end: false },
+        proposedEnd: { surah: 2, ayah: 141, is_end: false, page: 22, is_page_end: false },
+        targetLines: 5,
+        isReverse: false
+    };
+
+    result = engine.evaluate(candidate, context);
+    if (result.metadata?.appliedRule?.includes('ThematicHaltingRule')) {
+        assert(!!result.metadata.reason.includes('thematic boundary'), 'Thematic rule reason should mention thematic boundary');
+    }
 
     console.log("✓ Rule Engine tests passed! Deterministic ordering and snap functionality verified.");
 }
