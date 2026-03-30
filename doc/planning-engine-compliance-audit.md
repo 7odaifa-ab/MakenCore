@@ -51,7 +51,7 @@ Status legend:
 | --- | --- | --- | --- | --- |
 | Dataset validation automated checks | requirement §4 + PRD §12.3, §14 | PASS | `src/tests/domain/mushaf/dataset-validation.test.ts` now validates continuity, page markers, typed thematic integrity, weighted page-line bounds, and forward/reverse symmetry | Remaining enhancements are optional hardening (additional edge assertions), not core-gap blockers. |
 | Rule-level tests and directional symmetry tests | PRD §14 | PARTIAL | `rule-engine`, `dataset-validation`, and `epic3-multi-track` suites run under Vitest and currently pass together (14/14 tests) | Still needs broader edge-case matrix for all threshold combinations and reverse scenarios. |
-| Structured test framework migration | PRD §14.3 | PARTIAL | `vitest` installed and active in `package.json`; planning rule, dataset validation, and Epic 3 multi-track suites migrated to Vitest | Migration is in progress; remaining legacy script-style suites should be converted to Vitest. |
+| Structured test framework migration | PRD §14.3 | PARTIAL | `vitest` installed and active in `package.json`; `planErrors`, planning rule, dataset validation, and Epic 3 multi-track suites migrated to Vitest and passing | Migration progressed significantly; any remaining non-Vitest checks should be consolidated into Vitest/CI flow. |
 
 ---
 
@@ -82,8 +82,8 @@ Implementation appears to be at:
    - Add reverse-direction and threshold-edge matrix tests for surah/page/thematic rules.
 
 2. **Continue Vitest migration**
-   - Convert remaining script-style tests (starting with `src/tests/planErrors.test.ts`) into Vitest.
-   - Add a CI/local target that runs both migrated and transitional suites reliably.
+   - Consolidate migrated suites under a stable CI/local command path.
+   - Remove transitional/manual test execution paths once CI coverage is accepted.
 
 3. **Export-layer modernization**
    - Continue refactor toward adapter-based Excel/PDF export architecture and verify contract compatibility.
@@ -92,7 +92,7 @@ Implementation appears to be at:
 
 ## 8) Latest Verified Execution Snapshot
 
-- `npm run test:vitest -- src/tests/domain/planning/epic3-multi-track.test.ts src/tests/domain/planning/rule-engine.test.ts src/tests/domain/mushaf/dataset-validation.test.ts` → PASS (14/14 tests)
+- `npm run test:vitest -- src/tests/planErrors.test.ts src/tests/domain/planning/epic3-multi-track.test.ts src/tests/domain/planning/rule-engine.test.ts src/tests/domain/mushaf/dataset-validation.test.ts` → PASS (26/26 tests)
 
 These runs confirm progress in Phase 2 hardening and QA migration while Phases 3–5 remain partially complete.
 

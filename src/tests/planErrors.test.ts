@@ -1,31 +1,10 @@
-// src/tests/planErrors.test.ts
-//
-// اختبارات يدوية لجميع حالات الأخطاء والإصلاحات.
-// لا يحتاج Jest أو أي framework خارجي — يعمل مباشرة بـ: npx ts-node src/tests/planErrors.test.ts
-//
+import { describe, expect, it, vi } from 'vitest';
 import { PlanBuilder } from '../builders/PlanBuilder';
 import { PlanError, PlanErrorCode, Severity } from '../errors';
 import { QuranRepository } from '../core/QuranRepository';
 import { WindowMode } from '../core/constants';
 
-// ─── Mini Test Runner ─────────────────────────────────────────────────────────
-
-let passed = 0;
-let failed = 0;
-
-function test(name: string, fn: () => void): void {
-    try {
-        fn();
-        console.log(`  ✅ ${name}`);
-        passed++;
-    } catch (e: any) {
-        console.log(`  ❌ ${name}`);
-        console.log(`     ${e?.message ?? e}`);
-        failed++;
-    }
-}
-
-function expect_throws(
+function expectPlanError(
     expectedCode: PlanErrorCode,
     expectedSeverity: Severity,
     fn: () => void
@@ -34,201 +13,136 @@ function expect_throws(
         fn();
         throw new Error(`Expected PlanError(${expectedCode}) but nothing was thrown.`);
     } catch (e: any) {
-        if (!(e instanceof PlanError)) {
-            throw new Error(`Expected PlanError but got: ${e?.constructor?.name} — "${e?.message}"`);
-        }
-        if (e.code !== expectedCode) {
-            throw new Error(`Wrong code — expected ${expectedCode}, got ${e.code}`);
-        }
-        if (e.severity !== expectedSeverity) {
-            throw new Error(`Wrong severity — expected ${expectedSeverity}, got ${e.severity}`);
-        }
+        expect(e).toBeInstanceOf(PlanError);
+        expect(e.code).toBe(expectedCode);
+        expect(e.severity).toBe(expectedSeverity);
     }
 }
 
-function assert(condition: boolean, message: string): void {
-    if (!condition) throw new Error(`Assertion failed: ${message}`);
-}
+describe('PlanError Infrastructure', () => {
+    it('PlanError instanceof Error', () => {
+        const err = new PlanError(PlanErrorCode.MISSING_SCHEDULE, Severity.ERROR, 'test');
+        expect(err).toBeInstanceOf(Error);
+        expect(err).toBeInstanceOf(PlanError);
+        expect(err.name).toBe('PlanError');
+    });
 
-// ─── Suite 1: PlanError Infrastructure ───────────────────────────────────────
+    it('PlanError carries code, severity, message, context', () => {
+        const ctx = { startIdx: 10, endIdx: 5 };
+        const err = new PlanError(PlanErrorCode.START_AFTER_END, Severity.ERROR, 'msg', ctx);
+        expect(err.code).toBe(PlanErrorCode.START_AFTER_END);
+        expect(err.severity).toBe(Severity.ERROR);
+        expect(err.message).toBe('msg');
+        expect(err.context).toBe(ctx);
+    });
 
-console.log('\n══════════════════════════════════════════════');
-console.log('  Suite 1: PlanError Infrastructure');
-console.log('══════════════════════════════════════════════');
-
-test('PlanError instanceof Error', () => {
-    const err = new PlanError(PlanErrorCode.MISSING_SCHEDULE, Severity.ERROR, 'test');
-    assert(err instanceof Error, 'should extend Error');
-    assert(err instanceof PlanError, 'should be PlanError');
-    assert(err.name === 'PlanError', `name should be 'PlanError', got '${err.name}'`);
-});
-
-test('PlanError carries code, severity, message, context', () => {
-    const ctx = { startIdx: 10, endIdx: 5 };
-    const err = new PlanError(PlanErrorCode.START_AFTER_END, Severity.ERROR, 'msg', ctx);
-    assert(err.code === PlanErrorCode.START_AFTER_END, 'wrong code');
-    assert(err.severity === Severity.ERROR, 'wrong severity');
-    assert(err.message === 'msg', 'wrong message');
-    assert(err.context === ctx, 'wrong context ref');
-});
-
-test('PlanError.warn() does not throw (structured log only)', () => {
-    // Should silently log — capturing console.warn to suppress output in tests
-    const original = console.warn;
-    let captured = '';
-    console.warn = (...args: any[]) => { captured += args.join(' '); };
-
-    PlanError.warn(PlanErrorCode.INVALID_LOCATION, 'موقع غير صالح: سورة 0 آية 0', { surah: 0, ayah: 0 });
-
-    console.warn = original;
-    assert(captured.includes('INVALID_LOCATION'), `warn should log code, got: "${captured}"`);
-});
-
-// ─── Suite 2: Builder Errors ──────────────────────────────────────────────────
-
-console.log('\n══════════════════════════════════════════════');
-console.log('  Suite 2: Builder Errors');
-console.log('══════════════════════════════════════════════');
-
-test('MISSING_SCHEDULE — build() بدون setSchedule()', () => {
-    expect_throws(PlanErrorCode.MISSING_SCHEDULE, Severity.ERROR, () => {
-        new PlanBuilder().addHifz(7.5, { surah: 1, ayah: 1 }).build();
+    it('PlanError.warn() does not throw (structured log only)', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        PlanError.warn(PlanErrorCode.INVALID_LOCATION, 'موقع غير صالح: سورة 0 آية 0', { surah: 0, ayah: 0 });
+        expect(warnSpy).toHaveBeenCalled();
+        const firstArg = String(warnSpy.mock.calls[0][0] ?? '');
+        expect(firstArg).toContain('INVALID_LOCATION');
+        warnSpy.mockRestore();
     });
 });
 
-test('MODE_MIXING — addHifz() على خطة WERD', () => {
-    // نجبر currentMode على WERD_ECOSYSTEM عبر reflection
-    const builder = new PlanBuilder() as any;
-    builder.currentMode = 'WERD_ECOSYSTEM';
-    expect_throws(PlanErrorCode.MODE_MIXING, Severity.ERROR, () => {
-        builder.addHifz(7.5, { surah: 1, ayah: 1 });
+describe('Builder Errors', () => {
+    it('MISSING_SCHEDULE — build() without setSchedule()', () => {
+        expectPlanError(PlanErrorCode.MISSING_SCHEDULE, Severity.ERROR, () => {
+            new PlanBuilder().addHifz(7.5, { surah: 1, ayah: 1 }).build();
+        });
+    });
+
+    it('MODE_MIXING — addHifz() on WERD mode', () => {
+        const builder = new PlanBuilder() as any;
+        builder.currentMode = 'WERD_ECOSYSTEM';
+        expectPlanError(PlanErrorCode.MODE_MIXING, Severity.ERROR, () => {
+            builder.addHifz(7.5, { surah: 1, ayah: 1 });
+        });
+    });
+
+    it('START_AFTER_END — memorization start after end', () => {
+        expectPlanError(PlanErrorCode.START_AFTER_END, Severity.ERROR, () => {
+            new PlanBuilder()
+                .setSchedule({ startDate: '2026-01-01', daysPerWeek: 5, limitDays: 5, isReverse: false })
+                .addHifz(7.5, { surah: 5, ayah: 1 }, { surah: 1, ayah: 1 })
+                .build();
+        });
+    });
+
+    it('MAJOR_REVIEW_AHEAD — major review starts ahead of hifz', () => {
+        expectPlanError(PlanErrorCode.MAJOR_REVIEW_AHEAD, Severity.ERROR, () => {
+            new PlanBuilder()
+                .setSchedule({ startDate: '2026-01-01', daysPerWeek: 5, limitDays: 5, isReverse: false })
+                .addHifz(7.5, { surah: 1, ayah: 1 })
+                .addMajorReview(100, { surah: 50, ayah: 1 })
+                .build();
+        });
     });
 });
 
-test('START_AFTER_END — بداية الحفظ بعد النهاية', () => {
-    expect_throws(PlanErrorCode.START_AFTER_END, Severity.ERROR, () => {
-        new PlanBuilder()
-            .setSchedule({ startDate: '2026-01-01', daysPerWeek: 5, limitDays: 5, isReverse: false })
-            .addHifz(
-                7.5,
-                { surah: 5, ayah: 1 },   // start: سورة المائدة
-                { surah: 1, ayah: 1 }    // end: الفاتحة — قبل البداية!
-            )
+describe('Data Errors', () => {
+    it('INVALID_LOCATION — invalid surah', () => {
+        const repo = QuranRepository.getInstance();
+        expectPlanError(PlanErrorCode.INVALID_LOCATION, Severity.ERROR, () => {
+            repo.getIndexFromLocation(999, 1, false);
+        });
+    });
+
+    it('INVALID_LOCATION — invalid ayah in valid surah', () => {
+        const repo = QuranRepository.getInstance();
+        expectPlanError(PlanErrorCode.INVALID_LOCATION, Severity.ERROR, () => {
+            repo.getIndexFromLocation(1, 9999, false);
+        });
+    });
+
+    it('INVALID_LOCATION keeps surah+ayah in error context', () => {
+        const repo = QuranRepository.getInstance();
+        try {
+            repo.getIndexFromLocation(200, 5, false);
+            throw new Error('Expected PlanError');
+        } catch (e: any) {
+            expect(e).toBeInstanceOf(PlanError);
+            expect(e.context['surah']).toBe(200);
+            expect(e.context['ayah']).toBe(5);
+        }
+    });
+});
+
+describe('Regression Fixes', () => {
+    it('currentIdx <= globalMax after LinearTrack completion', () => {
+        const repo = QuranRepository.getInstance();
+        const dirData = repo.getDirectionData(false);
+        const globalMax = dirData.cumulative_array.length - 1;
+
+        const manager = new PlanBuilder()
+            .setSchedule({ startDate: '2026-01-01', daysPerWeek: 7, limitDays: 100, isReverse: false })
+            .addHifz(9999, { surah: 114, ayah: 1 })
+            .stopWhenCompleted()
             .build();
-    });
-});
 
-test('MAJOR_REVIEW_AHEAD — كبرى تبدأ أمام الحفظ', () => {
-    // isReverse: false → index يتصاعد من الفاتحة للناس
-    // addHifz يبدأ من سورة 1 ← المراجعة تبدأ من سورة 50 وهو أعلى index
-    expect_throws(PlanErrorCode.MAJOR_REVIEW_AHEAD, Severity.ERROR, () => {
-        new PlanBuilder()
+        manager.generatePlan();
+        const hifzTrack = manager.getTrack(1);
+
+        expect(hifzTrack).toBeDefined();
+        expect(hifzTrack!.state.isCompleted).toBe(true);
+        expect(hifzTrack!.state.currentIdx).toBeLessThanOrEqual(globalMax);
+    });
+
+    it('WindowStrategy sees Hifz history with deterministic execution order', () => {
+        const manager = new PlanBuilder()
             .setSchedule({ startDate: '2026-01-01', daysPerWeek: 5, limitDays: 5, isReverse: false })
             .addHifz(7.5, { surah: 1, ayah: 1 })
-            .addMajorReview(100, { surah: 50, ayah: 1 }) // أمام الحفظ في الاتجاه الطبيعي
+            .addMinorReview(3, WindowMode.GRADUAL)
             .build();
+
+        const plan = manager.generatePlan();
+        expect(plan.length).toBe(5);
+
+        const day1MinorEvents = plan[0].events.filter(e => e.trackId === 2);
+        expect(day1MinorEvents.length).toBe(0);
+
+        const day2MinorEvents = plan[1].events.filter(e => e.trackId === 2);
+        expect(day2MinorEvents.length).toBe(1);
     });
 });
-
-// ─── Suite 3: Data Errors ────────────────────────────────────────────────────
-
-console.log('\n══════════════════════════════════════════════');
-console.log('  Suite 3: Data Errors');
-console.log('══════════════════════════════════════════════');
-
-test('INVALID_LOCATION — سورة 999 غير موجودة', () => {
-    const repo = QuranRepository.getInstance();
-    expect_throws(PlanErrorCode.INVALID_LOCATION, Severity.ERROR, () => {
-        repo.getIndexFromLocation(999, 1, false);
-    });
-});
-
-test('INVALID_LOCATION — آية 9999 لسورة صحيحة', () => {
-    const repo = QuranRepository.getInstance();
-    expect_throws(PlanErrorCode.INVALID_LOCATION, Severity.ERROR, () => {
-        repo.getIndexFromLocation(1, 9999, false); // الفاتحة 7 آيات فقط
-    });
-});
-
-test('INVALID_LOCATION — context يحمل surah+ayah صحيح', () => {
-    const repo = QuranRepository.getInstance();
-    try {
-        repo.getIndexFromLocation(200, 5, false);
-        throw new Error('لم يُرمَ خطأ');
-    } catch (e: any) {
-        assert(e instanceof PlanError, 'يجب PlanError');
-        assert(e.context['surah'] === 200, `surah في context = ${e.context['surah']}`);
-        assert(e.context['ayah'] === 5, `ayah في context = ${e.context['ayah']}`);
-    }
-});
-
-// ─── Suite 5: Fix 1 — currentIdx لا يتجاوز الحدود ───────────────────────────
-
-console.log('\n══════════════════════════════════════════════');
-console.log('  Suite 5: Fix 1 — currentIdx لا يتجاوز الحدود');
-console.log('══════════════════════════════════════════════');
-
-test('currentIdx <= globalMax بعد اكتمال LinearTrack', () => {
-    const repo = QuranRepository.getInstance();
-    const dirData = repo.getDirectionData(false); // forward
-    const globalMax = dirData.cumulative_array.length - 1; // 6235
-
-    // خطة صغيرة: حفظ من سورة 114 (آخر سورة forward) بمقدار كبير حتى الاكتمال السريع
-    const manager = new PlanBuilder()
-        .setSchedule({ startDate: '2026-01-01', daysPerWeek: 7, limitDays: 100, isReverse: false })
-        .addHifz(
-            9999, // كبير جداً — سينتهي في يوم واحد
-            { surah: 114, ayah: 1 } // آخر سورة
-        )
-        .stopWhenCompleted()
-        .build();
-
-    manager.generatePlan();
-
-    const hifzTrack = manager.getTrack(1); // TrackId.HIFZ = 1
-    assert(hifzTrack !== undefined, 'يجب وجود hifzTrack');
-    assert(hifzTrack!.state.isCompleted, 'يجب أن يكتمل الحفظ');
-    assert(
-        hifzTrack!.state.currentIdx <= globalMax,
-        `currentIdx (${hifzTrack!.state.currentIdx}) > globalMax (${globalMax})`
-    );
-});
-
-// ─── Suite 6: Fix 3 — ترتيب التنفيذ مفروض ────────────────────────────────────
-
-console.log('\n══════════════════════════════════════════════');
-console.log('  Suite 6: Fix 3 — ترتيب التنفيذ بالـ id');
-console.log('══════════════════════════════════════════════');
-
-test('WindowStrategy تحصل على تاريخ Hifz حتى مع إضافة عكسية', () => {
-    // نُنشئ خطة عادية — PlanBuilder يضمن الترتيب الصحيح الآن عبر sort في TrackManager
-    const manager = new PlanBuilder()
-        .setSchedule({ startDate: '2026-01-01', daysPerWeek: 5, limitDays: 5, isReverse: false })
-        .addHifz(7.5, { surah: 1, ayah: 1 })
-        .addMinorReview(3, WindowMode.GRADUAL)
-        .build();
-
-    const plan = manager.generatePlan();
-    assert(plan.length === 5, `expected 5 days, got ${plan.length}`);
-
-    // يوم 1: الصغرى لا تاريخ لها → لا حدث
-    const day1MinorEvents = plan[0].events.filter(e => e.trackId === 2);
-    assert(day1MinorEvents.length === 0, 'اليوم 1: الصغرى يجب أن تكون صفر (GRADUAL)');
-
-    // يوم 2: الصغرى تقرأ تاريخ يوم 1 → حدث واحد
-    const day2MinorEvents = plan[1].events.filter(e => e.trackId === 2);
-    assert(day2MinorEvents.length === 1, 'اليوم 2: الصغرى يجب حدث واحد بعد يوم من الحفظ');
-});
-
-// ─── نتيجة ───────────────────────────────────────────────────────────────────
-
-console.log('\n══════════════════════════════════════════════');
-const total = passed + failed;
-if (failed === 0) {
-    console.log(`  🎉 الكل نجح: ${passed}/${total}`);
-} else {
-    console.log(`  ⚠️  ${passed}/${total} نجح — ${failed} فشل`);
-}
-console.log('══════════════════════════════════════════════\n');
-
-if (failed > 0) process.exit(1);
