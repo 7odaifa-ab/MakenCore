@@ -1,170 +1,139 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { QuranAyahReference } from '../../../domain/mushaf/entities/QuranAyahReference';
 
-interface RawRow {
-    surahName: string;
-    surah: number;
-    ayah: number;
-    lines: number;
+interface HafsVerse {
+    id: number;
+    jozz: number;
+    sora: number;
+    sora_name_en: string;
+    sora_name_ar: string;
+    page: number;
+    line_start: number;
+    line_end: number;
+    aya_no: number;
+    aya_text: string;
+    aya_text_emlaey: string;
 }
 
-export function generateCanonicalDataset(csvPath: string, outputPath: string) {
-    if (!fs.existsSync(csvPath)) {
-        throw new Error(`CSV file not found at ${csvPath}`);
+export function generateHafsCanonicalDataset(jsonPath: string, outputPath: string) {
+    if (!fs.existsSync(jsonPath)) {
+        throw new Error(`Hafs JSON file not found at ${jsonPath}`);
     }
 
-    const lines = fs.readFileSync(csvPath, 'utf8').split('\n').filter(l => l.trim().length > 0);
-    // skip header
-    lines.shift();
+    const rawData: HafsVerse[] = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    
+    // Sort array by ID to ensure correct sequential order
+    rawData.sort((a, b) => a.id - b.id);
 
-    const rawData: RawRow[] = lines.map(line => {
-        const parts = line.split(',');
-        return {
-            surahName: parts[0].trim(),
-            surah: parseInt(parts[1]),
-            ayah: parseInt(parts[2]),
-            lines: parseFloat(parts[3])
-        };
-    });
+    // Pass 1: Count ayahs per line (for handling shared lines appropriately)
+    const lineAyahCounts = new Map<string, number>();
+    for (const verse of rawData) {
+        for (let l = verse.line_start; l <= verse.line_end; l++) {
+            const key = `${verse.page}:${l}`;
+            lineAyahCounts.set(key, (lineAyahCounts.get(key) || 0) + 1);
+        }
+    }
 
-    const canonicalData: QuranAyahReference[] = [];
-    let cumulativeLines = 0;
-    let currentPage = 1;
+    const canonicalData: any[] = [];
+    const surahNames: string[] = [];
+    const surahInfo: [string, number][] = [];
+
+    let currentSurah = -1;
+    let surahAyahCount = 0;
 
     for (let i = 0; i < rawData.length; i++) {
-        const row = rawData[i];
-        cumulativeLines += row.lines;
+        const verse = rawData[i];
         
-        // Approximate page number (15 lines per Madinah Mushaf page)
-        // With fractions, it's safer to compute using cumulative lines
-        const expectedPage = Math.max(1, Math.ceil(cumulativeLines / 15));
-        
-        let isPageEnd = false;
-        if (i < rawData.length - 1) {
-            const nextCumulative = cumulativeLines + rawData[i + 1].lines;
-            if (expectedPage < Math.ceil(nextCumulative / 15)) {
-                isPageEnd = true;
+        // Detect Surah Boundaries
+        if (verse.sora !== currentSurah) {
+            if (currentSurah !== -1) {
+                surahInfo.push([surahNames[currentSurah - 1], surahAyahCount]);
             }
-        } else {
-            isPageEnd = true; // Last ayah
+            currentSurah = verse.sora;
+            surahNames[currentSurah - 1] = verse.sora_name_ar;
+            surahAyahCount = 0;
         }
+        surahAyahCount++;
 
-        const isSurahEnd = i === rawData.length - 1 || rawData[i+1].surah !== row.surah;
+        const isSurahEnd = (i === rawData.length - 1) || (rawData[i + 1].sora !== verse.sora);
+        const isPageEnd = (i === rawData.length - 1) || (rawData[i + 1].page !== verse.page);
         
+        // Detect Thematic Break: ۞ for Rub, ۩ for Sajdah
+        const hasThematicMark = verse.aya_text.includes('۞') || verse.aya_text.includes('۩');
+        
+        // Calculate lines weight, handling shared lines proportionally
+        let linesCount = 0;
+        for (let l = verse.line_start; l <= verse.line_end; l++) {
+            const key = `${verse.page}:${l}`;
+            linesCount += 1.0 / (lineAyahCounts.get(key) || 1);
+        }
+        // Round to 4 decimal places to avoid floating point anomalies
+        linesCount = Number(linesCount.toFixed(4));
+
         canonicalData.push({
-            surah: row.surah,
-            ayah: row.ayah,
-            lines: row.lines,
-            page: expectedPage,
+            surah: verse.sora,
+            ayah: verse.aya_no,
+            page: verse.page,
+            lineStart: verse.line_start,
+            lineEnd: verse.line_end,
+            lines: linesCount,
             isSurahEnd,
             isPageEnd,
-            thematicBreak: false // Can be expanded with a proper Rub/Hizb dataset in future
+            thematicBreak: hasThematicMark
         });
-        
-        currentPage = expectedPage;
     }
+    
+    // Push last surah info
+    surahInfo.push([surahNames[currentSurah - 1], surahAyahCount]);
 
-    // Now build forward and reverse directions
-    // Forward
+    // Build Forward and Reverse arrays for the Engine
     const fwdIdxMap: Record<string, number> = {};
     const fwdCumArray: number[] = [];
     const fwdLocations: any[] = [];
-    let curCum = 0;
-    
+    let cumulativeProgress = 0;
+
     canonicalData.forEach((ayah, idx) => {
-        curCum += ayah.lines;
-        const curCumRounded = parseFloat(curCum.toFixed(6));
-        fwdCumArray.push(curCumRounded);
+        cumulativeProgress += ayah.lines;
+        fwdCumArray.push(parseFloat(cumulativeProgress.toFixed(4)));
         fwdIdxMap[`${ayah.surah}:${ayah.ayah}`] = idx;
         fwdLocations.push({
             surah: ayah.surah,
             ayah: ayah.ayah,
-            is_end: ayah.isSurahEnd,
             page: ayah.page,
-            is_page_end: ayah.isPageEnd
+            is_end: ayah.isSurahEnd,
+            is_page_end: ayah.isPageEnd,
+            thematic_break: ayah.thematicBreak
         });
     });
 
-    // Reverse
-    const revData = [...canonicalData].reverse();
+    // Reverse Data (114 -> 1)
+    const revSortData = [...canonicalData].sort((a, b) => {
+        if (a.surah !== b.surah) return b.surah - a.surah;
+        return a.ayah - b.ayah;
+    });
+
     const revIdxMap: Record<string, number> = {};
     const revCumArray: number[] = [];
     const revLocations: any[] = [];
-    curCum = 0;
-
-    // To properly map verse order, in reverse direction we actually go from An-Nas (114) to Al-Fatihah (1)
-    // and within each surah, usually we go backwards across surahs, but forward within a review? 
-    // Wait! The Python script sorts by `[surah_order, ayah_num]` ascending/descending depending on what we want.
-    // The Python script says:
-    // df_rev = df.sort_values(by=['surah_order', 'ayah_num'], ascending=[False, True])
-    // So surah goes 114 -> 1, but ayah within surah goes 1 -> end! (ascending ayah).
-    
-    // Let's sort manually to match Python behavior
-    const revSortData = [...canonicalData].sort((a, b) => {
-        if (a.surah !== b.surah) return b.surah - a.surah; // Descending surahs
-        return a.ayah - b.ayah; // Ascending ayahs
-    });
+    let revCumulativeProgress = 0;
 
     revSortData.forEach((ayah, idx) => {
-        curCum += ayah.lines;
-        const curCumRounded = parseFloat(curCum.toFixed(6));
-        revCumArray.push(curCumRounded);
+        revCumulativeProgress += ayah.lines;
+        revCumArray.push(parseFloat(revCumulativeProgress.toFixed(4)));
         revIdxMap[`${ayah.surah}:${ayah.ayah}`] = idx;
         revLocations.push({
             surah: ayah.surah,
             ayah: ayah.ayah,
-            is_end: ayah.isSurahEnd,
             page: ayah.page,
-            is_page_end: ayah.isPageEnd
+            is_end: ayah.isSurahEnd,
+            is_page_end: ayah.isPageEnd,
+            thematic_break: ayah.thematicBreak
         });
     });
 
-    // Surah stats
-    const surahNames: string[] = [];
-    const surahInfo: [string, number][] = [];
-    
-    // Group by surah
-    let curSurah = -1;
-    let sName = '';
-    let aCount = 0;
-    canonicalData.forEach(ayah => {
-        if (ayah.surah !== curSurah) {
-            if (curSurah !== -1) {
-                surahInfo.push([sName, aCount]);
-                surahNames.push(sName);
-            }
-            curSurah = ayah.surah;
-            const rawRow = rawData.find(r => r.surah === ayah.surah);
-            sName = rawRow ? rawRow.surahName : `Surah ${ayah.surah}`;
-            aCount = 0;
-        }
-        aCount = Math.max(aCount, ayah.ayah);
-    });
-    if (curSurah !== -1) {
-        surahInfo.push([sName, aCount]);
-        surahNames.push(sName);
-    }
-
-    const outputObj = {
-        surah_names: surahNames,
-        surah_info: surahInfo,
-        forward: {
-            cumulative_lines: fwdCumArray,
-            index_map: fwdIdxMap,
-            locations: fwdLocations
-        },
-        reverse: {
-            cumulative_lines: revCumArray,
-            index_map: revIdxMap,
-            locations: revLocations
-        }
-    };
-
-    // We can write it as JSON or TS
     const tsContent = `/**
- * Canonical Mushaf Dataset generated automatically.
- * DO NOT EDIT MANUALLY.
+ * Canonical Mushaf Dataset (Hafs v18) - Ground Truth
+ * Generated automatically. DO NOT EDIT.
  */
 
 export const SURAH_NAMES: readonly string[] = ${JSON.stringify(surahNames, null, 2)};
@@ -182,16 +151,16 @@ export const INDEX_MAP_REVERSE: Record<string, number> = ${JSON.stringify(revIdx
 export const REVERSE_INDEX_REVERSE = ${JSON.stringify(revLocations)};
 `;
 
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, tsContent, 'utf8');
-    console.log(`Successfully generated dataset at ${outputPath}`);
-    
-    // Return for validation string
-    return outputObj;
+    console.log(`✅ Dataset generated from Hafs JSON: ${outputPath}`);
+}
+
+export function generateCanonicalDataset(sourcePath: string, outputPath: string) {
+    return generateHafsCanonicalDataset(sourcePath, outputPath);
 }
 
 if (require.main === module) {
-    const csvFile = path.resolve(__dirname, '../../../../src/data/قاعدة بيانات - من الفاتحة.csv');
+    const jsonFile = path.resolve(__dirname, '../../../../src/data/hafs/data/hafsData_v18.json');
     const outTs = path.resolve(__dirname, '../../../../src/data/CanonicalQuranData.ts');
-    generateCanonicalDataset(csvFile, outTs);
+    generateHafsCanonicalDataset(jsonFile, outTs);
 }

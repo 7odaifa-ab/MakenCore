@@ -1,5 +1,9 @@
-import * as path from 'path';
-import { generateCanonicalDataset } from '../../../infrastructure/dataset/generators/dataset-generator';
+import {
+    INDEX_MAP_FORWARD,
+    INDEX_MAP_REVERSE,
+    REVERSE_INDEX_FORWARD,
+    REVERSE_INDEX_REVERSE,
+} from '../../../data/CanonicalQuranData';
 
 function assert(condition: boolean, message: string) {
     if (!condition) {
@@ -9,14 +13,8 @@ function assert(condition: boolean, message: string) {
 
 async function runTests() {
     console.log("Starting Dataset Validation Tests...");
-    const csvPath = path.resolve(__dirname, '../../../../src/data/قاعدة بيانات - من الفاتحة.csv');
-    const outTs = path.join(__dirname, 'dummy-out.ts'); // just for memory, but generates real data
-    
-    // This executes the pipeline
-    const dataset = generateCanonicalDataset(csvPath, outTs);
-
-    const fw = dataset.forward.locations;
-    const rev = dataset.reverse.locations;
+    const fw = REVERSE_INDEX_FORWARD;
+    const rev = REVERSE_INDEX_REVERSE;
 
     // 1. Validate ayah continuity
     console.log("Validating Ayah continuity per Surah...");
@@ -28,7 +26,7 @@ async function runTests() {
         } else {
             assert(loc.surah === prevSurah + 1, `Gap in surahs: expected ${prevSurah + 1}, got ${loc.surah}`);
             assert(loc.ayah === 1, `Surah ${loc.surah} does not start at ayah 1 (got ${loc.ayah})`);
-            assert(fw[dataset.forward.index_map[`${prevSurah}:${prevAyah}`]].is_end === true, `is_end missing for surah end at ${prevSurah}:${prevAyah}`);
+            assert(fw[INDEX_MAP_FORWARD[`${prevSurah}:${prevAyah}`]].is_end === true, `is_end missing for surah end at ${prevSurah}:${prevAyah}`);
         }
         prevSurah = loc.surah;
         prevAyah = loc.ayah;
@@ -54,7 +52,7 @@ async function runTests() {
     // Check lengths and items
     // (Notice: we sorted the reverse array by surah DESC and ayah ASC)
     const midPointFwd = fw[3000];
-    const mapRevIdx = dataset.reverse.index_map[`${midPointFwd.surah}:${midPointFwd.ayah}`];
+    const mapRevIdx = INDEX_MAP_REVERSE[`${midPointFwd.surah}:${midPointFwd.ayah}`];
     const midPointRev = rev[mapRevIdx];
     
     assert(midPointFwd.surah === midPointRev.surah && midPointFwd.ayah === midPointRev.ayah, 'Symmetry lookup failed');
