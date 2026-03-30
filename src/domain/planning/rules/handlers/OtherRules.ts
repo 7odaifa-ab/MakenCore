@@ -50,9 +50,68 @@ export class BalanceCorrectionRule implements PlanningRule {
     priority = 50;
 
     apply(candidate: RuleCandidate, context: RuleContext): RuleResult {
-        // If the resulting track has built up a huge positive or negative balance
-        // we could correct it here. For now, passthrough.
-        // E.g., if expected cumulative lines is far from actual cumulative completed.
-        return { approvedEnd: candidate.proposedEnd };
+        const repo = context.repository;
+        const dirData = repo.getDirectionData(candidate.isReverse);
+
+        const minAllowed = Math.max(0, candidate.targetLines - context.snapThresholdLines);
+        const maxAllowed = candidate.targetLines + context.snapThresholdLines;
+
+        let approvedEnd = candidate.proposedEnd;
+        let lines = repo.getLinesBetween(candidate.start, approvedEnd, candidate.isReverse);
+
+        if (approvedEnd.is_end || approvedEnd.is_page_end || approvedEnd.thematic_break) {
+            return { approvedEnd };
+        }
+
+        if (lines >= minAllowed && lines <= maxAllowed) {
+            return { approvedEnd };
+        }
+
+        const startIdx = repo.getIndexFromLocation(candidate.start.surah, candidate.start.ayah, candidate.isReverse);
+        let endIdx = repo.getIndexFromLocation(approvedEnd.surah, approvedEnd.ayah, candidate.isReverse);
+
+        const stepDirection = lines > maxAllowed ? -1 : 1;
+        const maxIterations = 30;
+
+        for (let i = 0; i < maxIterations; i++) {
+            const nextIdx = endIdx + stepDirection;
+            if (nextIdx < 0 || nextIdx >= dirData.cumulative_array.length || nextIdx === startIdx) {
+                break;
+            }
+
+            const nextLoc = repo.getLocationFromIndex(nextIdx, dirData.index_map);
+            const nextLines = repo.getLinesBetween(candidate.start, nextLoc, candidate.isReverse);
+
+            if (Math.abs(nextLines - candidate.targetLines) > Math.abs(lines - candidate.targetLines)) {
+                break;
+            }
+
+            endIdx = nextIdx;
+            approvedEnd = nextLoc;
+            lines = nextLines;
+
+            if (lines >= minAllowed && lines <= maxAllowed) {
+                break;
+            }
+        }
+
+        const originalLines = repo.getLinesBetween(candidate.start, candidate.proposedEnd, candidate.isReverse);
+        const adjustment = Number((lines - originalLines).toFixed(2));
+
+        if (
+            approvedEnd.surah !== candidate.proposedEnd.surah ||
+            approvedEnd.ayah !== candidate.proposedEnd.ayah
+        ) {
+            return {
+                approvedEnd,
+                metadata: {
+                    appliedRule: this.name,
+                    reason: `Adjusted to keep lines near target (${candidate.targetLines}) within threshold`,
+                    adjustmentLines: adjustment
+                }
+            };
+        }
+
+        return { approvedEnd };
     }
 }

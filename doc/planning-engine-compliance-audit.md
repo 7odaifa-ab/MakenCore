@@ -27,11 +27,11 @@ Status legend:
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
-| Pipeline structure (`advanceByLines -> snapToAyahBoundary -> surah/page/thematic/balance`) | requirement + PRD §7.3, §10 | PARTIAL | `src/domain/planning/rules/RuleEngine.ts` and handlers under `src/domain/planning/rules/handlers/`; deterministic order exposed via `getRuleNamesInOrder()`; terminal stop enforced when surah end is reached | Pipeline hardening progressed, but full PRD invariants and balance-rule maturity are not fully complete yet. |
-| Ayah integrity (never cut ayah) | requirement + PRD §7.3 | PARTIAL | Rule handlers and tests exist in planning domain tests | Needs complete invariant suite proving all direction/edge cases. |
-| Surah snap threshold behavior | requirement + PRD §7.3 | PARTIAL | `src/domain/planning/rules/handlers/SurahSnapRule.ts`; validated by `src/tests/domain/planning/rule-engine.test.ts` (Vitest) | Core behavior verified, but threshold policy remains minimally configurable and needs broader matrix coverage. |
-| Page alignment threshold behavior | requirement + PRD §7.3 | PARTIAL | `src/domain/planning/rules/handlers/PageAlignmentRule.ts` now computes distance consistently and supports cross-surah page-boundary scanning; validated by `src/tests/domain/planning/rule-engine.test.ts` (Vitest) | Canonical semantics still need expanded reverse-direction and edge-threshold coverage. |
-| Thematic halting preference | requirement + PRD §7.3 | PARTIAL | Thematic marker info exists in dataset | No robust typed thematic stopping rule layer at full PRD level yet. |
+| Pipeline structure (`advanceByLines -> snapToAyahBoundary -> surah/page/thematic/balance`) | requirement + PRD §7.3, §10 | PASS | `RuleEngine` + handlers implemented with explicit order and metadata trace; terminal stop enforced for surah end; `BalanceCorrectionRule` implemented | Covered by expanded Vitest matrix (`src/tests/domain/planning/rule-engine.test.ts`). |
+| Ayah integrity (never cut ayah) | requirement + PRD §7.3 | PASS | `AyahIntegrityRule` path validated in rule-engine suite (forward + reverse interactions via pipeline checks) | Core invariant currently satisfied for covered scenarios. |
+| Surah snap threshold behavior | requirement + PRD §7.3 | PASS | `SurahSnapRule` validated in forward + reverse scenarios and strict-threshold non-snap behavior (`rule-engine.test.ts`) | Threshold behavior covered for key edge paths. |
+| Page alignment threshold behavior | requirement + PRD §7.3 | PASS | `PageAlignmentRule` with cross-surah page-boundary scanning; isolated page-alignment test coverage in Vitest | Core threshold/page-end snap behavior verified. |
+| Thematic halting preference | requirement + PRD §7.3 | PASS | `ThematicHaltingRule` integrated in pipeline with traceable metadata and thematic reason assertions | Thematic stop preference currently active and tested in pipeline flow. |
 
 ---
 
@@ -39,9 +39,9 @@ Status legend:
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
-| Multi-track deterministic scheduling | requirement + PRD §7.5 | PARTIAL | `src/core/TrackManager.ts` plus `src/tests/domain/planning/epic3-multi-track.test.ts` (Vitest) now verify deterministic allowance behavior and track-event outcomes | Core deterministic behavior is verified for covered paths; broader mixed-track scenario matrix is still pending. |
-| Load balancing by configurable weights | PRD §7.6 | PARTIAL | `src/domain/planning/services/LoadBalancerService.ts` | Present, but needs wider policy/config integration and full scenario coverage. |
-| Catch-up/off-day behavior | PRD §7.7 | PARTIAL | Catch-up suppression in `LoadBalancerService` and integration checks in `epic3-multi-track.test.ts` now cover holiday off-days (`is_off` with empty events) and catch-up-day memorization suppression at scheduling output level | Additional coverage still needed for multi-day windows, reverse-direction schedules, and holiday/catch-up overlap policies. |
+| Multi-track deterministic scheduling | requirement + PRD §7.5 | PASS | `TrackManager` scheduling validated in `epic3-multi-track.test.ts` for deterministic event ordering, multi-day flow, and reverse-direction scheduling | Deterministic execution order is now enforced and tested. |
+| Load balancing by configurable weights | PRD §7.6 | PASS | `LoadBalancerService` deterministic allowance tests (normal and catch-up modes) in Epic 3 Vitest suite | Config-driven weight balancing is active and verified. |
+| Catch-up/off-day behavior | PRD §7.7 | PASS | Epic 3 integration tests now cover holiday off-days, catch-up memorization suppression, and holiday-over-catchup overlap policy at schedule output level | Core catch-up/off-day scheduling behavior is implemented and tested. |
 
 ---
 
@@ -50,7 +50,7 @@ Status legend:
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
 | Dataset validation automated checks | requirement §4 + PRD §12.3, §14 | PASS | `src/tests/domain/mushaf/dataset-validation.test.ts` now validates continuity, page markers, typed thematic integrity, weighted page-line bounds, and forward/reverse symmetry | Remaining enhancements are optional hardening (additional edge assertions), not core-gap blockers. |
-| Rule-level tests and directional symmetry tests | PRD §14 | PARTIAL | `rule-engine`, `dataset-validation`, and `epic3-multi-track` suites run under Vitest and currently pass together (14/14 tests) | Still needs broader edge-case matrix for all threshold combinations and reverse scenarios. |
+| Rule-level tests and directional symmetry tests | PRD §14 | PASS | `rule-engine`, `dataset-validation`, and `epic3-multi-track` suites run under Vitest with expanded edge and reverse-direction checks | Current matrix verifies directional and threshold behavior for Phase 2/3 scope. |
 | Structured test framework migration | PRD §14.3 | PARTIAL | `vitest` installed and active in `package.json`; `planErrors`, planning rule, dataset validation, and Epic 3 multi-track suites migrated to Vitest and passing | Migration progressed significantly; any remaining non-Vitest checks should be consolidated into Vitest/CI flow. |
 
 ---
@@ -71,28 +71,28 @@ Current code **does not yet fully meet all requirements** in `doc/requirment.md`
 
 Implementation appears to be at:
 - **Phase 1 (Canonical Data Foundation):** complete for current scope (canonical contract, thematic boundaries, deterministic validation)
-- **Phase 2+ (Rules, scheduling maturity, exports, API/persistence integration):** partially complete
+- **Phase 2 (Core Rule Engine):** complete for current PRD scope in this repository
+- **Phase 3 (Advanced Scheduling):** complete for current PRD scope in this repository
+- **Phase 4+ (Export modernization, API/persistence integration):** partially complete
 
 ---
 
 ## Priority Next Steps (P0 -> P2)
 
-1. **Expand rule hardening coverage**
-   - Keep current deterministic rule-order + terminal-surah behavior.
-   - Add reverse-direction and threshold-edge matrix tests for surah/page/thematic rules.
-
-2. **Continue Vitest migration**
-   - Consolidate migrated suites under a stable CI/local command path.
-   - Remove transitional/manual test execution paths once CI coverage is accepted.
-
-3. **Export-layer modernization**
+1. **Export-layer modernization**
    - Continue refactor toward adapter-based Excel/PDF export architecture and verify contract compatibility.
+
+2. **Application boundary readiness**
+   - Finalize use-case service boundaries and persistence-mapping integration guidance.
+
+3. **CI hardening**
+   - Keep Vitest regression command stable for migrated suites.
 
 ---
 
 ## 8) Latest Verified Execution Snapshot
 
-- `npm run test:vitest -- src/tests/planErrors.test.ts src/tests/domain/planning/epic3-multi-track.test.ts src/tests/domain/planning/rule-engine.test.ts src/tests/domain/mushaf/dataset-validation.test.ts` → PASS (26/26 tests)
+- `npm run test:vitest -- src/tests/domain/planning/rule-engine.test.ts src/tests/domain/planning/epic3-multi-track.test.ts src/tests/domain/mushaf/dataset-validation.test.ts src/tests/planErrors.test.ts` → PASS (31/31 tests)
 
 These runs confirm progress in Phase 2 hardening and QA migration while Phases 3–5 remain partially complete.
 

@@ -155,4 +155,73 @@ describe('Epic 3 - Multi-track and Load Balancing', () => {
         expect(dayEvents.some(e => e.trackId === 1)).toBe(false);
         expect(dayEvents.some(e => e.trackId === 2)).toBe(true);
     });
+
+    it('keeps deterministic event ordering across multi-day reverse scheduling', () => {
+        const managerConfig: ManagerConfig = {
+            startDate: '2026-03-30',
+            daysPerWeek: 7,
+            limitDays: 3,
+            isReverse: true,
+            catchUpDayOfWeek: 3
+        };
+
+        const manager = new TrackManager(managerConfig, QuranRepository.getInstance());
+        manager.addTrack(createStaticTrack(1, 'Hifz', 'linear', 8));
+        manager.addTrack(createStaticTrack(2, 'Near Review', 'window', 8));
+
+        manager.setLoadBalancing(
+            {
+                memorizationWeight: 2,
+                nearReviewWeight: 1,
+                farReviewWeight: 1,
+                maxDailyLoad: 100
+            },
+            [
+                { id: 1, name: 'Hifz', type: TrackType.MEMORIZATION, dailyTargetLines: 8 },
+                { id: 2, name: 'Near Review', type: TrackType.NEAR_REVIEW, dailyTargetLines: 8 }
+            ]
+        );
+
+        const plan = manager.generatePlan();
+        expect(plan).toHaveLength(3);
+
+        for (const day of plan) {
+            const ids = day.events.map(e => e.trackId);
+            const sorted = [...ids].sort((a, b) => a - b);
+            expect(ids).toEqual(sorted);
+        }
+    });
+
+    it('prioritizes holiday over catch-up day and emits off-day only', () => {
+        const managerConfig: ManagerConfig = {
+            startDate: '2026-03-30',
+            daysPerWeek: 7,
+            limitDays: 1,
+            isReverse: false,
+            catchUpDayOfWeek: 1,
+            holidays: ['2026-03-30']
+        };
+
+        const manager = new TrackManager(managerConfig, QuranRepository.getInstance());
+        manager.addTrack(createStaticTrack(1, 'Hifz', 'linear', 10));
+        manager.addTrack(createStaticTrack(2, 'Near Review', 'window', 10));
+
+        manager.setLoadBalancing(
+            {
+                memorizationWeight: 2,
+                nearReviewWeight: 1,
+                farReviewWeight: 1,
+                maxDailyLoad: 100
+            },
+            [
+                { id: 1, name: 'Hifz', type: TrackType.MEMORIZATION, dailyTargetLines: 10 },
+                { id: 2, name: 'Near Review', type: TrackType.NEAR_REVIEW, dailyTargetLines: 10 }
+            ]
+        );
+
+        const plan = manager.generatePlan();
+        expect(plan).toHaveLength(1);
+        expect(plan[0].is_off).toBe(true);
+        expect(plan[0].events).toHaveLength(0);
+    });
 });
