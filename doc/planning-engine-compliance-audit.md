@@ -55,13 +55,13 @@ Status legend:
 
 ---
 
-## 5) API/Persistence/Export Readiness
+## 5) API/Persistence Readiness
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
 | API contracts for preview/generate/estimate/export/dataset validate | PRD §13 + API contracts doc | PASS | `src/infrastructure/api/contracts.ts` aligned to documented contract, with backward-compatible aliases and passing `src/tests/infrastructure/contracts.test.ts` | NestJS endpoint wiring remains integration work, not DTO definition gap. |
 | Prisma-oriented persistence model draft | PRD §13 + Prisma draft doc | PASS (Draft) | `doc/planning-engine-prisma-schema-draft.md` | Draft exists; implementation not started. |
-| Export layer modernization (Excel + PDF adapters) | PRD §7.8, §15 | PARTIAL | Existing export capability present in repo | Not fully refactored into final adapter architecture with complete PDF flow guarantees. |
+| JSON output as the primary data contract | PRD §7.8 | PASS | Engine natively outputs `PlanDay[]` struct | PDF generation is dropped from the Engine's scope (deferred to the consuming app). Excel generation is reduced to a `devDependency` for internal debugging. |
 
 ---
 
@@ -73,19 +73,18 @@ Implementation appears to be at:
 - **Phase 1 (Canonical Data Foundation):** complete for current scope (canonical contract, thematic boundaries, deterministic validation)
 - **Phase 2 (Core Rule Engine):** complete for current PRD scope in this repository
 - **Phase 3 (Advanced Scheduling):** complete for current PRD scope in this repository
-- **Phase 4+ (Export modernization, API/persistence integration):** partially complete
+- **Phase 4 (API/Data Contracts):** complete (JSON output established as Engine deliverable, presentation formats delegated outside engine)
+- **Phase 5 (Application boundary integration):** partially complete (draft)
 
 ---
 
 ## Priority Next Steps (P0 -> P2)
 
-1. **Export-layer modernization**
-   - Continue refactor toward adapter-based Excel/PDF export architecture and verify contract compatibility.
+1. **Application boundary readiness (Phase 5)**
+   - Finalize use-case service boundaries mapping the generated JSON data to API endpoints.
+   - Draft and finalize the PostgreSQL schema translation via Prisma.
 
-2. **Application boundary readiness**
-   - Finalize use-case service boundaries and persistence-mapping integration guidance.
-
-3. **CI hardening**
+2. **CI hardening**
    - Keep Vitest regression command stable for migrated suites.
 
 ---
@@ -141,22 +140,20 @@ These runs confirm progress in Phase 2 hardening and QA migration while Phases 3
 
 ---
 
-### Phase 4 — Export Layer (Partial)
+### Phase 4 — API & Data Contracts (Complete)
 
 **Objective**
-- Deliver a stable adapter-based export boundary supporting operational Excel and printable PDF output.
+- Define the Engine's formal output as raw, unopinionated JSON (`PlanDay[]`).
 
 **Completion Criteria**
-- Export is refactored into clear adapters (Excel and PDF responsibilities separated).
-- Dynamic columns render correctly based on active tracks.
-- Off-day/catch-up visual states are preserved in exported artifacts.
-- PDF row integrity is guaranteed (single day not split unexpectedly).
+- Core engine does not depend on heavy presentation libraries (PDFKit, ExcelJS).
+- Excel generation is isolated as a `devDependency` strictly for internal visualization and debugging.
+- PDF generation is explicitly delegated to the consumptive application layer (NestJS/Frontend).
 
 **Work Items**
-- Complete adapter refactor of the current export flow.
-- Implement/finish PDF adapter with printable layout constraints.
-- Add export-focused tests (structure checks and snapshot-style verification where appropriate).
-- Verify contract compatibility with `src/infrastructure/api/contracts.ts` export DTO shape.
+- Remove `pdfkit` dependency from `package.json`.
+- Move `exceljs` to `devDependencies`.
+- Confirm engine natively resolves structured JSON plans internally without presentation tight-coupling.
 
 ---
 
@@ -181,9 +178,5 @@ These runs confirm progress in Phase 2 hardening and QA migration while Phases 3
 
 ## 7) Suggested Delivery Sequence (From Current State)
 
-1. Finish Phase 2 rule hardening and full rule test matrix.
-2. Complete Phase 3 scheduling integration (balancing + catch-up/off-day).
-3. Finalize Phase 4 export adapter architecture and PDF readiness.
-4. Execute Phase 5 boundary preparation for API/persistence embedding.
-
-This sequence preserves dependency order and minimizes rework risk across planning, export, and integration layers.
+1. Execute Phase 5 boundary preparation for API/persistence embedding.
+2. Formulate integration plan for hooking MakenCore as an NPM module within the NestJS parent SaaS backend.

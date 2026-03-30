@@ -15,13 +15,9 @@
   "description": "",
   "devDependencies": {
     "@types/node": "^25.0.3",
+    "exceljs": "^4.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"
-  },
-  "dependencies": {
-    "@types/pdfkit": "^0.17.5",
-    "exceljs": "^4.4.0",
-    "pdfkit": "^0.18.0"
   }
 }

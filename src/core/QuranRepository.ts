@@ -134,14 +134,22 @@ export class QuranRepository {
             lookupArray = this.data.forward.reverse_index;
         }
 
-        const loc = lookupArray[index];
+        const loc = lookupArray[index] as any;
 
         if (!loc) {
             // Fallback for out of bounds (safe guard)
             return { surah: 1, ayah: 1, is_end: false };
         }
 
-        return { surah: loc.surah, ayah: loc.ayah, is_end: loc.is_end };
+        return { 
+            surah: loc.surah, 
+            ayah: loc.ayah, 
+            is_end: loc.is_end,
+            page: loc.page,
+            is_page_end: loc.is_page_end,
+            thematic_break: loc.thematic_break,
+            thematic_break_type: loc.thematic_break_type
+        };
     }
 
     /**
