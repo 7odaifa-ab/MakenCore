@@ -1,7 +1,12 @@
 import { PlanningRule, RuleCandidate, RuleContext, RuleResult } from '../RuleInterface';
 
 export class PageAlignmentRule implements PlanningRule {
+    /**
+     * ⚠️ WARNING: Page alignment is currently based on computed approximations ($Lines/15$).
+     * Standard Mushaf page boundaries are NOT yet integrated. Accuracy is low.
+     */
     name = 'PageAlignmentRule';
+
     priority = 30;
 
     apply(candidate: RuleCandidate, context: RuleContext): RuleResult {

@@ -3,7 +3,13 @@ import { PlanDay, PlanEvent } from '../../core/types';
 import { EventType } from '../../core/constants';
 import { PlanDefinition, TrackDefinition, TrackType, PlanDirection } from '../../domain/planning/entities/PlanConfig';
 
+/**
+ * PlanMapper
+ * ⚠️ WARNING: Maps plans based on potentially technically incorrect page/line data.
+ * Accuracy cannot be guaranteed until the underlying Quranic dataset is finalized.
+ */
 export class PlanMapper {
+
     /**
      * Maps a Prisma Plan loaded with all joined tables back to the Domain Record
      */
@@ -56,9 +62,9 @@ export class PlanMapper {
             id: domainModel.id,
             startDate: domainModel.config.startDate,
             tracks: {
-                create: domainModel.config.tracks.map(t => ({
-                    trackType: t.type,
-                    dailyLines: t.dailyTargetLines,
+                create: (domainModel.config.tracks || []).map((t: any) => ({
+                    trackType: t.type || t.trackType,
+                    dailyLines: t.dailyTargetLines || t.dailyLines,
                     // mocked start point, as PlanDefinition does not store start points explicitly right now
                     startSurah: 1,
                     startAyah: 1

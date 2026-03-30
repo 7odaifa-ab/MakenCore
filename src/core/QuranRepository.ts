@@ -25,11 +25,15 @@ interface DirectionData {
 /**
  * QuranRepository (Singleton)
  * * Central data access layer for all Quran-related queries.
+ * * ⚠️ WARNING: This repository serves APPROXIMATE data derived from a basic lines-only CSV.
+ * * Page numbers and thematic markers are NOT grounded in a real Mushaf dataset.
+ * * DO NOT USE for production rules until data is replaced with ground-truth.
  * * DESIGN PATTERNS:
  * - Singleton: One instance shared across all tracks
  * - Repository: Abstracts data storage from business logic
  * * MEMORY: ~150KB (shared) - Increased slightly for O(1) speed
  */
+
 export class QuranRepository {
     private static instance: QuranRepository;
 

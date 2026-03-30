@@ -30,10 +30,14 @@ export type StopCondition = (tracks: Map<number, ITrack>) => boolean;
 /**
  * TrackManager
  * * The core simulation engine.
+ * * ⚠️ WARNING: This engine currently operates on APPROXIMATE and INCOMPLETE Quranic data.
+ * * Distribution of pages and thematic breaks are technically inaccurate.
+ * * DO NOT PROCEED WITH PRODUCTION LOGIC until a verified, ground-truth dataset is provided.
  * * 🚀 REFACTORED:
  * 1. Uses Constructor Injection for QuranRepository (Pure DI).
  * 2. Generates dynamic 'events' array instead of fixed fields.
  */
+
 export class TrackManager {
     private tracks: Map<number, ITrack> = new Map();
     private constraintManager: ConstraintManager;

@@ -1,4 +1,8 @@
+> [!CAUTION]
+> **تنبيه:** تم إيقاف الملاحم (Epic Development Stop) في هذا الملف. نعتمد حالياً على بيانات تقريبية ($Lines / 15$) وهي **غير كافية** لضمان دقة "محاذاة الصفحات" و"الوقوف الموضوعي". لا يجب الاستمرار إلا في حال توفر Dataset قطعية.
+
 # PRD — Next Generation Quran Planning Engine
+
 
 ## 1. Document Purpose
 

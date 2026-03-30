@@ -1,7 +1,13 @@
 import { PlanningRule, RuleCandidate, RuleContext, RuleResult } from './RuleInterface';
 
 export class RuleEngine {
+    /**
+     * ⚠️ WARNING: This engine currently operates on APPROXIMATE and INCOMPLETE Quranic data ($Lines/15$).
+     * Distribution of pages and thematic breaks are technically inaccurate.
+     * DO NOT PROCEED WITH DEVELOPMENT until a verified, ground-truth dataset is provided.
+     */
     private rules: PlanningRule[] = [];
+
 
     constructor(rules: PlanningRule[] = []) {
         // Sort ascending priority (lower number = runs first)
