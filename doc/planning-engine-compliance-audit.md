@@ -39,9 +39,9 @@ Status legend:
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
-| Multi-track deterministic scheduling | requirement + PRD §7.5 | PARTIAL | Track manager + planning tests in `src/tests/domain/planning/` | Determinism is present in parts, but not all product behaviors are encoded and validated end-to-end. |
+| Multi-track deterministic scheduling | requirement + PRD §7.5 | PARTIAL | `src/core/TrackManager.ts` plus `src/tests/domain/planning/epic3-multi-track.test.ts` (Vitest) now verify deterministic allowance behavior and track-event outcomes | Core deterministic behavior is verified for covered paths; broader mixed-track scenario matrix is still pending. |
 | Load balancing by configurable weights | PRD §7.6 | PARTIAL | `src/domain/planning/services/LoadBalancerService.ts` | Present, but needs wider policy/config integration and full scenario coverage. |
-| Catch-up/off-day behavior | PRD §7.7 | PARTIAL | Catch-up suppression logic in load balancer | Needs complete scheduling integration (holidays + full pipeline interactions). |
+| Catch-up/off-day behavior | PRD §7.7 | PARTIAL | Catch-up suppression in `LoadBalancerService` and integration checks in `epic3-multi-track.test.ts` now cover holiday off-days (`is_off` with empty events) and catch-up-day memorization suppression at scheduling output level | Additional coverage still needed for multi-day windows, reverse-direction schedules, and holiday/catch-up overlap policies. |
 
 ---
 
@@ -50,8 +50,8 @@ Status legend:
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
 | Dataset validation automated checks | requirement §4 + PRD §12.3, §14 | PASS | `src/tests/domain/mushaf/dataset-validation.test.ts` now validates continuity, page markers, typed thematic integrity, weighted page-line bounds, and forward/reverse symmetry | Remaining enhancements are optional hardening (additional edge assertions), not core-gap blockers. |
-| Rule-level tests and directional symmetry tests | PRD §14 | PARTIAL | `src/tests/domain/planning/rule-engine.test.ts` and `src/tests/domain/mushaf/dataset-validation.test.ts` are now Vitest suites and currently passing (10/10 combined) | Still needs broader edge-case matrix for all threshold combinations and reverse scenarios. |
-| Structured test framework migration | PRD §14.3 | PARTIAL | `vitest` installed and active in `package.json`; planning rule and dataset validation suites migrated to Vitest | Migration is in progress; remaining legacy script-style suites should be converted to Vitest. |
+| Rule-level tests and directional symmetry tests | PRD §14 | PARTIAL | `rule-engine`, `dataset-validation`, and `epic3-multi-track` suites run under Vitest and currently pass together (14/14 tests) | Still needs broader edge-case matrix for all threshold combinations and reverse scenarios. |
+| Structured test framework migration | PRD §14.3 | PARTIAL | `vitest` installed and active in `package.json`; planning rule, dataset validation, and Epic 3 multi-track suites migrated to Vitest | Migration is in progress; remaining legacy script-style suites should be converted to Vitest. |
 
 ---
 
@@ -82,7 +82,7 @@ Implementation appears to be at:
    - Add reverse-direction and threshold-edge matrix tests for surah/page/thematic rules.
 
 2. **Continue Vitest migration**
-   - Convert remaining script-style tests (starting with scheduling suites) into Vitest.
+   - Convert remaining script-style tests (starting with `src/tests/planErrors.test.ts`) into Vitest.
    - Add a CI/local target that runs both migrated and transitional suites reliably.
 
 3. **Export-layer modernization**
@@ -92,7 +92,7 @@ Implementation appears to be at:
 
 ## 8) Latest Verified Execution Snapshot
 
-- `npm run test:vitest -- src/tests/domain/planning/rule-engine.test.ts src/tests/domain/mushaf/dataset-validation.test.ts` → PASS (10/10 tests)
+- `npm run test:vitest -- src/tests/domain/planning/epic3-multi-track.test.ts src/tests/domain/planning/rule-engine.test.ts src/tests/domain/mushaf/dataset-validation.test.ts` → PASS (14/14 tests)
 
 These runs confirm progress in Phase 2 hardening and QA migration while Phases 3–5 remain partially complete.
 
