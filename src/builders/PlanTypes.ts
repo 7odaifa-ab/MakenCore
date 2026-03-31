@@ -40,6 +40,7 @@ export interface ScheduleConfig {
     limitDays?: number;      // Max days (0 = run to completion)
     endDate?: string;        // Optional deadline
     isReverse?: boolean;     // false = Fatiha→Nas, true = Nas→Fatiha
+    catchUpDayOfWeek?: number; // Optional catch-up day index (0-6)
     
     // NOTE: Stop conditions are NOT defined here to keep ScheduleConfig pure.
     // Use PlanBuilder methods (e.g., .stopWhenCompleted()) instead.

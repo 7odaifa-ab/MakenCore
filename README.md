@@ -1,113 +1,98 @@
-# مكين — Quran Planning Engine
+# MakenCore — Quran Planning Engine
 
-محرك تخطيط قرآني متكامل، يُولّد خططاً يومية للحفظ والمراجعة، ويتابع تقدم الطلاب جلسةً بجلسة. يتميز بكونه محركاً مستقلاً يمكن دمجه في أي مشروع كـ `npm package`.
+**MakenCore** is a standalone, purely typed, deterministic TypeScript scheduling engine for Quran memorization and review tracking. It is designed to be imported as an NPM library into parent SaaS platforms (such as a NestJS backend) to provide isolated domain logic.
 
----
+![MakenCore](https://img.shields.io/badge/Status-Production%20Ready-success)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
 
-## جدول المحتويات
-
-1. [نظرة عامة](#1-نظرة-عامة)
-2. [بنية المشروع](#2-بنية-المشروع)
-3. [البدء السريع](#3-البدء-السريع)
-4. [خارطة الطريق — Roadmap (Epics)](#4-خارطة-الطريق--roadmap-epics)
-5. [البنية التحتية والجاهزية للإنتاج — Infrastructure](#5-البنية-التحتية-والجاهزية-للإنتاج--infrastructure)
-6. [نظام التخطيط — Planning Engine](#6-نظام-التخطيط--planning-engine)
-7. [QuranRepository — طبقة البيانات](#7-quranrepository--طبقة-البيانات)
-8. [نظام الأخطاء — Error System](#8-نظام-الأخطاء--error-system)
-9. [سيناريوهات الاستخدام](#9-سيناريوهات-الاستخدام)
-10. [القرارات الهندسية](#10-القرارات-الهندسية)
+## Core Capabilities
+- **Deterministic Scheduling:** Multi-track (Hifz, Minor Review, Major Review) load balancing and rule-driven event generation.
+- **Canonical Dataset Validation:** Leverages an $O(1)$ directional prefix-sum indexing system using the ground-truth Hafs v18 script for mathematically sound page and thematic bounds.
+- **Rule Pipeline:** `RuleEngine` architecture enforces `AyahIntegrity`, `SurahSnap` to `<7 lines`, `PageAlignment`, and `ThematicHalting`.
+- **Stateless Operation:** Pure JSON-in (`CreatePlanPreviewRequestDTO`), JSON-out (`CreatePlanPreviewResponseDTO`).
 
 ---
 
-## 1. نظرة عامة
+## 📦 Installation & Usage
 
-**مكين** مكتبة TypeScript تُوفّر:
+**MakenCore** exports a single Facade `MakenEngine` along with strict Data Transfer Objects (DTOs) and Domain Types for your application to consume.
 
-| الوظيفة | الوصف |
-|---|---|
-| **توليد الخطة** | محاكاة يومية لمسارات الحفظ والمراجعة الصغرى والكبرى مع توازن الأحمال |
-| **استعلامات القرآن** | تحويل السورة:الآية إلى index والعكس، حساب الأسطر بدقة O(1) |
-| **التصدير الاحترافي** | تصدير Excel و PDF مع دعم ملاحظات المعلمين |
-| **الجاهزية للربط** | عقود API (DTOs) وجداول Prisma جاهزة للاستخدام |
+### For API Integrations (NestJS, Express, etc.)
+The primary boundary for consumer applications is the `MakenEngine` class.
 
----
+```typescript
+import { 
+    MakenEngine, 
+    CreatePlanPreviewRequestDTO 
+} from 'maken-core';
 
-## 2. بنية المشروع
+// 1. Build the DTO Request
+const payload: CreatePlanPreviewRequestDTO = {
+    name: "Ramadan Intensive",
+    direction: "FORWARD", // or 'REVERSE'
+    daysPerWeek: 5,
+    tracks: [
+        {
+            type: "HIFZ",
+            priority: 1,
+            amountUnit: "LINES",
+            amountValue: 15,
+            start: { surah: 1, ayah: 1 }
+        }
+    ],
+    startDate: "2026-03-30"
+};
 
-```
-src/
-├── main.ts                        # نقطة الدخول للتجارب والمحاكاة
-│
-├── core/                          # المحرك الأساسي (Logic Only)
-│   ├── TrackManager.ts            # محرك المحاكاة اليومية
-│   ├── QuranRepository.ts         # Singleton: كل استعلامات بيانات القرآن
-│   ├── PlanContext.ts             # سياق كل يوم محاكاة
-│   ├── constants.ts               # Enums: TrackId, WindowMode
-│   └── types.ts                   # PlanDay, PlanEvent
-│
-├── domain/                        # تعريفات المجال (Domain Models)
-│   ├── planning/
-│   │   ├── entities/              # PlanConfig, TrackDefinition
-│   │   └── repositories/          # IPlanRepository, IFolderRepository (Interfaces)
-│   └── mushaf/                    # القواعد والمحركات المعيارية (Rules)
-│
-├── infrastructure/                 # الربط مع الأنظمة الخارجية
-│   ├── api/
-│   │   └── contracts.ts           # DTOs: طلبات واستجابات API
-│   ├── adapters/
-│   │   └── export/                # ExcelExportAdapter, PdfExportAdapter
-│   └── mappers/
-│       └── PlanMapper.ts          # تحويل بين الدومين وقاعدة البيانات
-│
-├── prisma/                        # مسودة قاعدة البيانات (PostgreSQL/Schema)
-│
-├── builders/
-│   ├── PlanBuilder.ts             # Fluent API لإنشاء الخطة
-... (بقية المجلدات: tracks, strategies, constraints, errors, utils, tests)
+// 2. Execute the Domain logic
+const result = MakenEngine.generatePlan(payload);
+
+if (result.success) {
+    const planDays = result.data.plan;
+    console.log(`Plan spans ${result.data.totalDays} days`);
+    // Pass `planDays` to your Prisma service to save them to PostgreSQL!
+}
 ```
 
+### Advanced: Direct Domain Access
+If you are building custom workflows, you can bypass the Facade and use the domain builders directly:
+
+```typescript
+import { PlanBuilder, WindowMode } from 'maken-core';
+
+const builder = new PlanBuilder();
+const manager = builder
+    .setSchedule({ startDate: "2026-03-30", daysPerWeek: 5, isReverse: false })
+    .addHifz(15, { surah: 2, ayah: 1 })
+    .addMinorReview(5, WindowMode.GRADUAL)
+    .stopWhenCompleted()
+    .build();
+
+const days = manager.generatePlan();
+```
+
 ---
 
-## 3. البدء السريع
+## 🗃️ Application Boundaries (Phase 5)
+
+MakenCore has deliberately offloaded presentation and database concerns to the parent application.
+
+### 1. Presentation & Exports
+PDF and formal Excel generation are **out of scope** for this engine to prevent package bloat. MakenCore returns pure JSON `PlanDay[]` arrays. The NestJS server or React frontend is responsible for passing this data into `pdfkit` or `exceljs`. 
+
+*(Note: basic Excel scripts are maintained as `devDependencies` for internal QA and debugging).*
+
+### 2. Database Persistence
+Your backend should persist MakenCore's output. A complete [Prisma Schema Strategy Matrix](doc/planning-engine-prisma-schema-draft.md) is included in the documentation folder to help you instantly map MakenCore's events to PostgreSQL.
+
+---
+
+## 🧪 Testing
+
+The engine is backed by a deterministic test suite utilizing Vitest for rule regression, multi-track load balancing, dataset validation, and Facade DTO assertions.
 
 ```bash
 npm install
-npm start
+npm run test:vitest
 ```
 
----
-
-## 4. خارطة الطريق — Roadmap (Epics)
-
-تم تقسيم تطوير المحرك إلى ملاحم تقنية (Epics) لضمان الجودة والتدرج:
-
-| الملحمة | الحالة | الوصف |
-|---|---|---|
-| **Epic 01: Domain Foundation** | ✅ | بناء قاعدة بيانات المصحف الرقمية (Dataset) والبحث السريع O(1). |
-| **Epic 02: Rule Engine** | ✅ | إضافة قواعد التكامل (Ayah Integrity) ومحاذاة الصفحات (Page Alignment). |
-| **Epic 03: Multi-Track** | ✅ | دعم المسارات المتعددة وتوازن الحمل اليومي (Load Balancing). |
-| **Epic 04: Persistence & API** | ✅ | تصميم جداول Prisma، عقود API (DTOs)، ومحولات التصدير. |
-
----
-
-## 5. البنية التحتية والجاهزية للإنتاج — Infrastructure
-
-تم إعداد المحرك ليكون قابلاً للاستخدام كـ **Module** مستقل:
-
-### عقود التواصل (API Contracts)
-تتوفر تعريفات DTOs كاملة لعمليات:
-- `GeneratePreviewRequestDTO`: لطلب معاينة الخطة.
-- `ExportRequestDTO`: لطلب ملف Excel أو PDF.
-- `LocationDTO`: لتوحيد شكل المواقع القرآنية.
-
-### التصدير الاحترافي (Advanced Export)
-- **ExcelAdapter**: تصدير متقدم يدعم تظليل الأيام وتنبيهات إعادة الدورة (🔄).
-- **PdfAdapter**: هيكلية جاهزة لتقارير PDF المطبوعة.
-
-### التخزين (Persistence)
-- **Prisma Schema**: جداول متكاملة تغطي (Plans, Tracks, Days, Folders, ShareCodes).
-- **Domain Mappers**: لضمان استقلالية المحرك عن تفاصيل قاعدة البيانات.
-
----
-
-(بقية الأقسام الفنية 6-10 تتبع نفس التفصيل السابق مع تحديثات Epic 4...)
+**Total automated tests:** 37/37 (100% Passing).

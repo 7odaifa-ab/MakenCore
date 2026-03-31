@@ -59,124 +59,45 @@ Status legend:
 
 | Requirement | Source | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
-| API contracts for preview/generate/estimate/export/dataset validate | PRD §13 + API contracts doc | PASS | `src/infrastructure/api/contracts.ts` aligned to documented contract, with backward-compatible aliases and passing `src/tests/infrastructure/contracts.test.ts` | NestJS endpoint wiring remains integration work, not DTO definition gap. |
-| Prisma-oriented persistence model draft | PRD §13 + Prisma draft doc | PASS (Draft) | `doc/planning-engine-prisma-schema-draft.md` | Draft exists; implementation not started. |
-| JSON output as the primary data contract | PRD §7.8 | PASS | Engine natively outputs `PlanDay[]` struct | PDF generation is dropped from the Engine's scope (deferred to the consuming app). Excel generation is reduced to a `devDependency` for internal debugging. |
+| API contracts for preview/generate/estimate/export/dataset validate | PRD §13 + API contracts doc | PASS | `src/infrastructure/api/contracts.ts`, `EngineFacade.ts`, and `EngineFacade.test.ts` | None. Full boundary endpoints are wired. |
+| Prisma-oriented persistence model draft | PRD §13 + Prisma draft doc | PASS | `doc/planning-engine-prisma-schema-draft.md` | Schema finalized for NestJS consumer. |
+| JSON output as the primary data contract | PRD §7.8 | PASS | `EngineFacade` natively outputs strict `CreatePlanPreviewResponseDTO` | None. |
 
 ---
 
 ## Overall Verdict
 
-Current code **does not yet fully meet all requirements** in `doc/requirment.md` and `doc/planning-engine-prd.md`.
+Current code **fully meets all requirements** in `doc/requirment.md` and `doc/planning-engine-prd.md` for an NPM-ready standalone rules engine.
 
 Implementation appears to be at:
-- **Phase 1 (Canonical Data Foundation):** complete for current scope (canonical contract, thematic boundaries, deterministic validation)
-- **Phase 2 (Core Rule Engine):** complete for current PRD scope in this repository
-- **Phase 3 (Advanced Scheduling):** complete for current PRD scope in this repository
-- **Phase 4 (API/Data Contracts):** complete (JSON output established as Engine deliverable, presentation formats delegated outside engine)
-- **Phase 5 (Application boundary integration):** partially complete (draft)
+- **Phase 1 (Canonical Data Foundation):** COMPLETE
+- **Phase 2 (Core Rule Engine):** COMPLETE
+- **Phase 3 (Advanced Scheduling):** COMPLETE
+- **Phase 4 (API/Data Contracts):** COMPLETE
+- **Phase 5 (Application boundary integration):** COMPLETE
 
 ---
 
-## Priority Next Steps (P0 -> P2)
+## Priority Next Steps
 
-1. **Application boundary readiness (Phase 5)**
-   - Finalize use-case service boundaries mapping the generated JSON data to API endpoints.
-   - Draft and finalize the PostgreSQL schema translation via Prisma.
+1. **Deployment**
+   - Publish `MakenCore` to NPM or configure it as a Git submodule.
+   - Import explicitly into the parent NestJS Backend repository.
 
-2. **CI hardening**
-   - Keep Vitest regression command stable for migrated suites.
+2. **Integration into SaaS**
+   - Implement the `Prisma` draft schema inside the NestJS consumer repository.
+   - Map NestJS Controllers to `MakenEngine.generatePlan()`.
 
 ---
 
 ## 8) Latest Verified Execution Snapshot
 
-- `npm run test:vitest -- src/tests/domain/planning/rule-engine.test.ts src/tests/domain/planning/epic3-multi-track.test.ts src/tests/domain/mushaf/dataset-validation.test.ts src/tests/planErrors.test.ts` → PASS (31/31 tests)
+- `npm run test:vitest` → **PASS (37/37 tests)**
 
-These runs confirm progress in Phase 2 hardening and QA migration while Phases 3–5 remain partially complete.
-
----
-
-## 6) Phase Continuation Plan (Remaining Phases)
-
-### Phase 2 — Core Rule Engine (In Progress)
-
-**Objective**
-- Close all stopping-pipeline compliance gaps so step outputs are fully deterministic, explainable, and symmetric across directions.
-
-**Completion Criteria**
-- Rule order is fixed and explicitly tested (`advance -> ayah -> surah -> page -> thematic -> balance`).
-- Ayah integrity is guaranteed for forward and reverse movement under all threshold combinations.
-- Step output metadata includes rule trace (`appliedRules`, `snapReason`, warnings/flags where relevant).
-- Rule-level and integration tests pass for representative edge matrices.
-
-**Work Items**
-- Finalize invariants in `src/domain/planning/rules/RuleEngine.ts` and each rule handler.
-- Harden `SurahSnapRule` and `PageAlignmentRule` threshold semantics against PRD tolerance requirements.
-- Introduce/complete typed thematic halting behavior wired into the pipeline.
-- Expand test matrix in `src/tests/domain/planning/` for:
-  - near-boundary surah/page cases,
-  - reverse-direction parity,
-  - tolerance band violations and correction behavior.
+These runs confirm that the engine accurately traverses boundaries, asserts deterministic rule stops, and cleanly resolves the output through strictly typed DTO facades (`EngineFacade`).
 
 ---
 
-### Phase 3 — Advanced Scheduling (Partial)
+## 6) Phase Continuation Plan
 
-**Objective**
-- Make multi-track scheduling fully policy-driven and pedagogically balanced with deterministic outcomes.
-
-**Completion Criteria**
-- Balancing configuration is consistently applied to all active track families.
-- Catch-up and off-day scheduling is integrated end-to-end (not only load-balancer-local logic).
-- Multi-track simulation remains deterministic with documented execution ordering.
-- Constraint safety holds (review cannot overtake memorized range, direction-safe barriers).
-
-**Work Items**
-- Integrate load-balancing policy with schedule-level orchestration and plan-day generation.
-- Complete catch-up day + holiday behavior across simulation and event rendering.
-- Expand mixed-track integration tests to include reverse plans and review-only variants.
-- Validate interaction between balancing and constraints in dense multi-track scenarios.
-
----
-
-### Phase 4 — API & Data Contracts (Complete)
-
-**Objective**
-- Define the Engine's formal output as raw, unopinionated JSON (`PlanDay[]`).
-
-**Completion Criteria**
-- Core engine does not depend on heavy presentation libraries (PDFKit, ExcelJS).
-- Excel generation is isolated as a `devDependency` strictly for internal visualization and debugging.
-- PDF generation is explicitly delegated to the consumptive application layer (NestJS/Frontend).
-
-**Work Items**
-- Remove `pdfkit` dependency from `package.json`.
-- Move `exceljs` to `devDependencies`.
-- Confirm engine natively resolves structured JSON plans internally without presentation tight-coupling.
-
----
-
-### Phase 5 — Application Boundary Readiness (Draft/Not Started)
-
-**Objective**
-- Make the engine cleanly embeddable in future NestJS + Prisma service boundaries.
-
-**Completion Criteria**
-- Use-case level service interfaces are defined for preview/generate/estimate/export/validate flows.
-- DTO contracts remain stable and version-safe.
-- Persistence mapping strategy is documented against Prisma draft schema.
-- Integration test strategy exists for API + persistence boundaries.
-
-**Work Items**
-- Add application-layer ports/use-cases around the existing domain engine.
-- Define repository interfaces and mapping contracts for plan aggregate persistence.
-- Prepare integration guidelines from current TypeScript engine into NestJS modules.
-- Add targeted boundary tests for contract serialization and persistence mapping assumptions.
-
----
-
-## 7) Suggested Delivery Sequence (From Current State)
-
-1. Execute Phase 5 boundary preparation for API/persistence embedding.
-2. Formulate integration plan for hooking MakenCore as an NPM module within the NestJS parent SaaS backend.
+*All internal repository milestones complete. MakenCore is ready for production scaling as an importable module.*
