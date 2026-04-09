@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 *.xlsx
+~$*.xlsx
 *.txt
 src/debug_issues.ts
 data/students/

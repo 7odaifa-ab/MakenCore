@@ -7,6 +7,8 @@
 
 // 1. Export Pure Domain Utilities & Entities
 export { QuranRepository } from './core/QuranRepository';
+export { QuranRepositoryOptimized } from './core/QuranRepositoryOptimized';
+export { QuranDataBinary } from './data/QuranDataBinary';
 export { TrackManager } from './core/TrackManager';
 export { PlanBuilder } from './builders/PlanBuilder';
 
