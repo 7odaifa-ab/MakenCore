@@ -70,10 +70,16 @@ describe('Surah At-Tahrim Plan Generation', () => {
 
         expect(result.success).toBe(true);
         expect(result.data.plan.length).toBeGreaterThan(0);
-        
+
+         console.log("REVERSE PLAN TRACE:");
+         result.data.plan.forEach((day, i) => {
+              console.log("Day " + (i+1) + ": " + JSON.stringify(day.events.map(e => e.start.surah + ":" + e.start.ayah + "->" + e.end.surah + ":" + e.end.ayah)));
+         });
+
         // For reverse planning, the last day should end at Surah At-Tahrim
         const lastDay = result.data.plan[result.data.plan.length - 1];
         if (lastDay.events.length > 0) {
+            console.log("LAST DAY EVENTS:", JSON.stringify(lastDay.events, null, 2));
             const lastEvent = lastDay.events[lastDay.events.length - 1];
             expect(lastEvent.end.surah).toBeLessThanOrEqual(66); // Should reach or pass Surah At-Tahrim
         }

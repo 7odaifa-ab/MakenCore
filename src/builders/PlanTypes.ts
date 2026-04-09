@@ -49,6 +49,12 @@ export interface ScheduleConfig {
     sequentialSurahMode?: boolean;
     /** Every N days, take a consolidation day (no new hifz, only review) */
     consolidationDayInterval?: number;
+    /** 
+     * Strict sequential mode: never change surah until 100% complete.
+     * If true: waits on consolidation days if surah completion would exceed maxAyahPerDay.
+     * If false (default): allows small overages (≤5 ayahs) to complete surahs.
+     */
+    strictSequentialMode?: boolean;
     
     // NOTE: Stop conditions are NOT defined here to keep ScheduleConfig pure.
     // Use PlanBuilder methods (e.g., .stopWhenCompleted()) instead.

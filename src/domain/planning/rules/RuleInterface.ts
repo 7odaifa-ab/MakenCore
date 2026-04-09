@@ -29,6 +29,7 @@ export interface RuleContext {
     // Pedagogical constraints
     maxAyahPerDay?: number;
     sequentialSurahMode?: boolean;
+    strictSequentialMode?: boolean; // If true, never allow surah jumps until 100% complete
 }
 
 export interface PlanningRule {

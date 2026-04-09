@@ -1,4 +1,113 @@
 // src/main.ts
+/**
+ * MakenCore Quran Planning Engine - Main Entry Point
+ * ==================================================
+ * 
+ * This file demonstrates the full capabilities of the planning engine
+ * with pedagogical constraints for human-optimized Quran memorization.
+ * 
+ * ## OUTPUT FORMAT EXPLANATION:
+ * 
+ * يوم 1 | 2026-02-01                    → Day number and date
+ *    حفظ جديد: التَّحريم (1) ⬅️ (6)    → New memorization: Surah (start) ➡️ (end)
+ *    مراجعة صغرى: ...                   → Minor review (last 5 lessons)
+ *    مراجعة كبرى: ...                   → Major review (20-page cycle)
+ * 
+ * Track Icons:
+ * - حفظ جديد (Hifz)       → Green: New memorization
+ * - مراجعة صغرى (Minor)   → Blue: Review last 5 lessons
+ * - مراجعة كبرى (Major)   → Orange: Cycle through memorized portions
+ * 
+ * Special Markers:
+ * -  → Major review track reset (completed a full cycle)
+ * 
+ * ## AVAILABLE MODES & CONFIGURATIONS:
+ * 
+ * ### 1. DIRECTION MODES:
+ * - isReverse: true   → Start from Surah 66 backwards (for finishing Quran)
+ * - isReverse: false  → Start from Surah 1 forwards (for beginning Quran)
+ * 
+ * ### 2. PEDAGOGICAL CONSTRAINTS:
+ * 
+ * maxAyahPerDay: 5-20 (default: 10)
+ *   → Hard cap on daily memorization to prevent cognitive overload
+ *   → Example: 10 = never exceed 10 ayahs/day (except small overages to complete surah)
+ * 
+ * sequentialSurahMode: true/false (default: true)
+ *   → true: Complete current surah before starting next (≤5 ayahs remaining = complete)
+ *   → false: Can stop mid-surah and jump to next
+ * 
+ * strictSequentialMode: true/false (default: false) [NEW]
+ *   → true: NEVER change surah until 100% complete (even if maxAyah exceeded)
+ *   → false: Allows small overages (≤5 ayahs) to complete surah
+ *   → Use case: Students who get confused by surah switching
+ * 
+ * consolidationDayInterval: 0-30 (default: 6)
+ *   → Every N days = "consolidation day" (no new hifz, only review)
+ *   → 0 = disabled (no consolidation days)
+ *   → 6 = every 6th day is review-only (spaced repetition)
+ *   → Recommended: 5-7 days
+ * 
+ * ### 3. TRACK CONFIGURATIONS:
+ * 
+ * addHifz(linesPerDay, startLocation)
+ *   → Main memorization track
+ *   → linesPerDay: 5-20 lines (affects calculation base)
+ *   → startLocation: {surah, ayah}
+ * 
+ * addMinorReview(lessonCount, WindowMode)
+ *   → Reviews last N lessons
+ *   → lessonCount: 3-7 lessons (default: 5)
+ *   → WindowMode.GRADUAL: Builds up gradually
+ *   → WindowMode.FIXED: Always shows N lessons
+ * 
+ * addMajorReview(linesPerDay, startLocation)
+ *   → Long-term review cycling
+ *   → linesPerDay: 15*20 = 300 lines = ~20 pages
+ *   → Cycles through entire memorized portion
+ * 
+ * ### 4. COMMAND-LINE FLAGS:
+ * 
+ * npm start              → Default: Console + Excel export
+ * npm start --json      → JSON API output only
+ * npm start --excel     → Excel export only
+ * npm start --help      → Show help
+ * 
+ * ### 5. PRESET CONFIGURATIONS:
+ * 
+ * // Conservative (beginners, elderly, busy professionals)
+ * { maxAyahPerDay: 5, sequentialSurahMode: true, consolidationDayInterval: 5 }
+ * 
+ * // Standard (most students) - DEFAULT
+ * { maxAyahPerDay: 10, sequentialSurahMode: true, consolidationDayInterval: 6 }
+ * 
+ * // Intensive (experienced memorizers)
+ * { maxAyahPerDay: 15, sequentialSurahMode: false, consolidationDayInterval: 0 }
+ * 
+ * // Completion Mode (finishing remaining Quran)
+ * { maxAyahPerDay: 20, sequentialSurahMode: true, consolidationDayInterval: 7 }
+ * 
+ * ### 6. RULE PIPELINE (Order of Execution):
+ * 
+ * Priority 5:   AyahIntegrityRule       → Never split ayahs
+ * Priority 18:  SurahCompletionRule     → Complete surah if ≤5 remaining
+ * Priority 20:  SurahSnapRule           → Snap to surah end if nearby
+ * Priority 30:  PageAlignmentRule       → Snap to page boundaries
+ * Priority 40:  ThematicHaltingRule     → Snap to hizb/juz (only for surahs >50 ayahs)
+ * Priority 50:  BalanceCorrectionRule   → Adjust to target line count
+ * Priority 55:  MaxAyahRule             → HARD CAP (runs LAST)
+ * 
+ * ## STEP FLAGS (Internal):
+ * - 'memorization'  → New Hifz step (subject to MaxAyahRule)
+ * - 'review'        → Review step (skips MaxAyahRule)
+ * - 'completed'     → Track reached end
+ * - 'reset'         → Major review track reset
+ * 
+ * For full documentation, see:
+ * - doc/planning-engine/pedagogical-rules-guide.md
+ * - doc/planning-engine/planning-engine-api-contracts.md
+ */
+
 import { PlanBuilder } from './builders/PlanBuilder';
 import { WindowMode } from './core/constants';
 import { PlanExporter } from './utils/PlanExporter';
@@ -17,7 +126,7 @@ async function main() {
 
     if (isHelpMode) {
         console.log(`
-\u0631\u0648\u0646 Quran Planning Engine - Usage:
+MakenCore Quran Planning Engine - Usage:
 
 npm start              - Default: Console + Excel export
 npm run start:json    - JSON output only (API format)
@@ -32,10 +141,10 @@ Flags:
         return;
     }
 
-    console.log("\n\u0631\u0648\u0646 Quran Planning Engine - Refactored Edition\n");
+    console.log("\nMakenCore Quran Planning Engine - Refactored Edition\n");
 
     try {
-        console.log("\u2699\ufe0f  \u062c\u0627\u0631\u064d \u0625\u0639\u062f\u0627\u062f \u0627\u0644\u062e\u0637\u0629...");
+        console.log("Setting up plan...");
 
         if (isJsonMode) {
             // JSON API Mode - Use MakenEngine for pure JSON output
@@ -76,6 +185,29 @@ Flags:
             // Default Mode - Use PlanBuilder for Excel + Console output
             const builder = new PlanBuilder();
 
+            // 🔧 CURRENT CONFIGURATION (Standard Mode):
+            // - Direction: Reverse (starting from Surah 66 backwards)
+            // - Days: Sun-Thu (5 days/week), 30-day limit
+            // 
+            // 📊 PEDAGOGICAL CONSTRAINTS:
+            // maxAyahPerDay: 10 → Never exceed 10 ayahs/day (small overages allowed to complete surah)
+            // sequentialSurahMode: true → Complete surah before jumping (≤5 remaining ayahs)
+            // strictSequentialMode: false → Allow small overages (use true for 100% strict)
+            // consolidationDayInterval: 6 → Every 6th day = review only (Days 6,12,18,24,30)
+            //
+            // 🎯 ALTERNATIVE MODES you can try:
+            //
+            // // 1. Conservative (Beginners/Elderly)
+            // { maxAyahPerDay: 5, sequentialSurahMode: true, consolidationDayInterval: 5 }
+            //
+            // // 2. Intensive (Experienced)
+            // { maxAyahPerDay: 15, sequentialSurahMode: false, consolidationDayInterval: 0 }
+            //
+            // // 3. Strict Sequential (Students who get confused)
+            // { maxAyahPerDay: 10, sequentialSurahMode: true, strictSequentialMode: true, consolidationDayInterval: 6 }
+            //
+            // // 4. Completion Mode (Finishing Quran)
+            // { maxAyahPerDay: 20, sequentialSurahMode: true, consolidationDayInterval: 7 }
             const manager = builder
                 .setSchedule({
                     startDate: "2026-02-01",
@@ -84,7 +216,8 @@ Flags:
                     isReverse: true,
                     // Pedagogical constraints for human-optimized planning
                     maxAyahPerDay: 10,        // Hard cap: never exceed 10 ayahs/day
-                    sequentialSurahMode: true, // Complete surah before jumping
+                    sequentialSurahMode: true, // Complete surah before jumping (≤5 ayahs)
+                    strictSequentialMode: false, // Allow small overages to complete surah
                     consolidationDayInterval: 6  // Every 6th day = review only (no hifz)
                 })
                 // Scenario: Memorization with review
@@ -102,30 +235,29 @@ Flags:
             const plan = manager.generatePlan();
             console.timeEnd("Generation Time");
 
-            console.log(`تم توليد ${plan.length} يوم (توقت الخطة عند اكتمال الهدف).\n`);
+            console.log(`Generated ${plan.length} days (plan stopped at goal completion).\n`);
 
-            // 3. التصدير والعرض (Exporter handles dynamic events now)
+            // 3. Export and display (Exporter handles dynamic events now)
             const exporter = new PlanExporter();
 
-            // أ) العرض في الكونسول للتأكد
-            // \u0623) \u0627\u0644\u0639\u0631\u0636 \u0641\u064a \u0627\u0644\u0643\u0648\u0646\u0633\u0648\u0644 \u0644\u0644\u062a\u062d\u0642\u0642 \u0627\u0644\u0633\u0631\u064a\u0639
+            // a) Console display for quick verification
             if (!isExcelMode) {
                 exporter.printToConsole(plan);
             }
 
-            // \u0628) \u062a\u0635\u062f\u064a\u0631 \u0645\u0644\u0641 \u0627\u0644\u0625\u0643\u0633\u0644
+            // b) Export Excel file
             const fileName = `QuranPlan_Refactored_${new Date().toISOString().split('T')[0]}.xlsx`;
-            console.log(`\ud83d\udcbe \u062c\u0627\u0631\u064d \u062d\u0641\u0638 \u0645\u0644\u0641 \u0627\u0644\u0625\u0643\u0633\u0644: ${fileName}...`);
+            console.log(`Saving Excel file: ${fileName}...`);
 
             await exporter.exportToExcel(plan, fileName);
 
-            console.log("\ud83c\udf89 \u062a\u0645\u062a \u0627\u0644\u0639\u0645\u0644\u064a\u0629 \u0628\u0646\u062c\u0627\u062d. \u0627\u0644\u0646\u0638\u0627\u0645 \u064a\u0639\u0645\u0644 \u0628\u0627\u0645\u062a\u064a\u0627\u0632!");
+            console.log("Operation completed successfully. System is working perfectly!");
         }
 
     } catch (error) {
-        console.error("\u274c Critical Error:", error);
+        console.error("Critical Error:", error);
     }
 }
 
-// \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062c
+// Run the program
 main().catch(console.error);

@@ -10,7 +10,7 @@ export interface ITrack {
     readonly name: string;
     readonly type: string;
     state: TrackState;
-    calculateNextStep(context: PlanContext): StepResult | null;
+    calculateNextStep(context: PlanContext): StepResult | StepResult[] | null;
     // 🚀 FIX: Accept simulation date to ensure history accuracy
     commitStep(step: StepResult, currentDate: Date): void;
 }
@@ -41,7 +41,7 @@ export abstract class BaseTrack implements ITrack {
         this.config.trackId = id; // Inject ID for strategies that need it
     }
 
-    calculateNextStep(context: PlanContext): StepResult | null {
+    calculateNextStep(context: PlanContext): StepResult | StepResult[] | null {
         if (this.state.isCompleted) return null;
         return this.strategy.calculateNextStep(this.state, context, this.config);
     }

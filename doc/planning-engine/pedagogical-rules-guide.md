@@ -63,6 +63,48 @@ Day 23: 57:1 → 57:7 (7 ayahs) - now starts next surah
 
 ---
 
+### 2b. StrictSequentialMode — Surah Lock (NEW)
+
+**Purpose:** For students who get confused by ANY surah switching until 100% complete.
+
+**Default:** false  
+**Difference from sequentialSurahMode:**
+- `sequentialSurahMode`: Allows surah change if previous surah has ≤5 ayahs remaining
+- `strictSequentialMode`: **NEVER** allows surah change until 100% complete
+
+**Behavior:**
+- If calculation would cross into new surah, it stops at current surah's end
+- Forces consolidation days if maxAyahPerDay would be exceeded by completion
+- Maximum context preservation for sensitive students
+
+**Use Cases:**
+- Elderly students who get confused by switching
+- Children who need complete surah context
+- Students with strong preference for "one surah at a time"
+
+**Example:**
+```typescript
+// strictSequentialMode = true, maxAyahPerDay = 10
+// Surah 58 has 22 ayahs, you're at ayah 12
+
+Day 22 (calculated): 58:12 → would extend to 58:22 (11 ayahs)
+Day 22 (actual): 58:12 → 58:21 (10 ayahs, at limit)
+Day 23 (consolidation): Only review (surah not 100% complete)
+Day 24: 58:22 (complete surah)
+Day 25: 57:1 → Now starts next surah
+```
+
+**Configuration:**
+```typescript
+{
+  sequentialSurahMode: true,      // Required baseline
+  strictSequentialMode: true,     // Additional strictness
+  maxAyahPerDay: 10
+}
+```
+
+---
+
 ### 3. ConsolidationDayInterval — Spaced Repetition
 
 **Purpose:** Creates dedicated review-only days every N days to consolidate learning without new material.
@@ -216,6 +258,17 @@ const manager = new PlanBuilder()
 // For students finishing remaining Quran
 ```
 
+### Strict Sequential Mode
+```typescript
+{
+  maxAyahPerDay: 10,
+  sequentialSurahMode: true,
+  strictSequentialMode: true,
+  consolidationDayInterval: 6
+}
+// For students sensitive to surah switching
+```
+
 ---
 
 ## Rule-Level Control (Advanced)
@@ -318,6 +371,7 @@ Planned additions to the pedagogical system:
 |------------|---------|-------|---------|
 | maxAyahPerDay | 10 | 5-20 | Prevent cognitive overload |
 | sequentialSurahMode | true | boolean | Prevent context switching |
+| strictSequentialMode | false | boolean | Never jump until 100% complete |
 | consolidationDayInterval | 6 | 0+ | Spaced repetition days |
 
 These features transform the engine from "optimized for completion" to **"optimized for retention and consistency"** — achieving a Gold Standard Quran Planner.

@@ -31,6 +31,23 @@ export class SurahCompletionRule implements PlanningRule {
 
         // Check if we've crossed into a new surah
         if (currentEnd.surah !== candidate.start.surah) {
+            // 🚫 STRICT MODE: Block ANY surah change until 100% complete
+            if (context.strictSequentialMode) {
+                const prevSurahAyahCount = repo.getAyahCount(candidate.start.surah);
+                // Return to end of previous surah (forces completion on next day)
+                const forcedEnd = repo.getLocationFromIndex(
+                    repo.getIndexFromLocation(candidate.start.surah, prevSurahAyahCount, candidate.isReverse),
+                    repo.getDirectionData(candidate.isReverse).index_map
+                );
+                return {
+                    approvedEnd: forcedEnd,
+                    metadata: {
+                        appliedRule: this.name,
+                        reason: `STRICT MODE: Cannot start Surah ${currentEnd.surah} until Surah ${candidate.start.surah} is 100% complete`,
+                        adjustmentLines: repo.getLinesBetween(currentEnd, forcedEnd, candidate.isReverse)
+                    }
+                };
+            }
             // We crossed surah boundary - this is allowed if we completed the previous
             return { approvedEnd: currentEnd };
         }

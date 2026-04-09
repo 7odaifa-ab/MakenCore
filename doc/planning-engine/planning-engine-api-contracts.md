@@ -62,9 +62,10 @@ Tracks mark steps with flags for rule pipeline awareness:
   "daysPerWeek": 5,
   "catchUpDay": 6,
   "pedagogical": {
-    "maxAyahPerDay": 8,             // Conservative: 8 ayahs/day max
-    "sequentialSurahMode": true,     // Complete each surah fully
-    "consolidationDayInterval": 5    // Every 5th day: review only
+    "maxAyahPerDay": 8,              // Conservative: 8 ayahs/day max
+    "sequentialSurahMode": true,    // Complete each surah fully
+    "strictSequentialMode": false,  // Allow small overages to complete surah
+    "consolidationDayInterval": 5   // Every 5th day: review only
   },
   "tracks": [
     {
@@ -286,8 +287,10 @@ Expected content types:
 interface PedagogicalConstraints {
   maxAyahPerDay: number;           // 5-20, default: 10
   sequentialSurahMode: boolean;      // default: true
+  strictSequentialMode: boolean;     // default: false - never jump until 100% complete
   consolidationDayInterval: number; // 0=disabled, default: 6
 }
+```
 ```
 
 ### Event Metadata (appliedRules)

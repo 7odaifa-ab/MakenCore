@@ -18,8 +18,12 @@ export class LoopingStrategy implements IMovementStrategy {
         state: TrackState, 
         context: PlanContext, 
         config: { amount: number, trackId: number }
-    ): StepResult | null {
-        const currentIdx = state.currentIdx;
+    ): StepResult | StepResult[] | null {
+        let results: StepResult[] = [];
+        let currentIdx = state.currentIdx;
+        let amountLeft = config.amount;
+        let didReset = false;
+
         const maxIndex = context.cumulativeArray.length - 1;
 
         // Check for barrier (wall constraint)
@@ -33,49 +37,72 @@ export class LoopingStrategy implements IMovementStrategy {
             }
         }
 
-        // Calculate target
-        const currentCum = currentIdx > 0 ? context.cumulativeArray[currentIdx - 1] : 0;
-        const targetCum = currentCum + config.amount;
+        let iterations = 0;
+        const originalStartIdx = currentIdx;
 
-        const effectiveSearchLimit = Math.min(wallIdx, maxIndex);
+        // Loop to fulfill the daily amount, slicing over multiple chunks if we hit boundaries
+        while (amountLeft >= 5 && iterations < 3) {
+            iterations++;
+            // Calculate target
+            const currentCum = currentIdx > 0 ? context.cumulativeArray[currentIdx - 1] : 0;
+            const targetCum = currentCum + amountLeft;
 
-        let stopIdx = findExponentialStopIndex(
-            context.cumulativeArray,
-            targetCum,
-            currentIdx,
-            effectiveSearchLimit
-        );
+            const effectiveSearchLimit = Math.min(wallIdx, maxIndex);
+            if (effectiveSearchLimit <= 0) break; // Nothing to review, pool is empty
 
-        // Check if we hit the wall
-        let hitWall = false;
-        
-        if (stopIdx >= wallIdx) {
-            stopIdx = wallIdx;
-            hitWall = true;
+            let stopIdx = findExponentialStopIndex(
+                context.cumulativeArray,
+                targetCum,
+                currentIdx,
+                effectiveSearchLimit
+            );
+
+            // Check if we hit the wall
+            let hitWall = false;
+            
+            if (stopIdx >= wallIdx) {
+                stopIdx = wallIdx;
+                hitWall = true;
+            }
+            
+            if (stopIdx === maxIndex && wallIdx === maxIndex) {
+                hitWall = true;
+            }
+
+            // Silence logic: if no movement possible
+            if (stopIdx === currentIdx) {
+                hitWall = true;
+                if (results.length > 0) {
+                     break; // we already did some work, just stop.
+                }
+                // If we haven't done any work today, we must wrap around
+            } else {
+                const linesProcessed = context.cumulativeArray[stopIdx] - currentCum;
+                results.push({
+                    startIdx: currentIdx,
+                    endIdx: stopIdx,
+                    start: context.quranRepo.getLocationFromIndex(currentIdx, context.indexMap),
+                    end: context.quranRepo.getLocationFromIndex(stopIdx, context.indexMap),
+                    linesProcessed: parseFloat(linesProcessed.toFixed(2)),
+                    flags: hitWall ? ['review', 'reset'] : ['review']
+                });
+                amountLeft -= linesProcessed;
+                currentIdx = stopIdx;
+            }
+
+            if (hitWall) {
+                // Wrap around completely
+                currentIdx = 0;
+                didReset = true;
+                if (wallIdx === 0) break; // Don't infinite loop if memory pool is 0
+                if (originalStartIdx === 0 && results.length > 0) break; // Prevent double-looping empty space in one day
+            } else {
+                break; // Handled the whole amount without hitting the wall
+            }
         }
-        
-        if (stopIdx === maxIndex && wallIdx === maxIndex) {
-            hitWall = true;
-        }
 
-        // Silence logic: if no movement possible, return null (track waits)
-        if (stopIdx === currentIdx) {
-            return null;
-        }
-
-        const result: StepResult = {
-            startIdx: currentIdx,
-            endIdx: stopIdx,
-            start: context.quranRepo.getLocationFromIndex(currentIdx, context.indexMap),
-            end: context.quranRepo.getLocationFromIndex(stopIdx, context.indexMap),
-            linesProcessed: parseFloat((context.cumulativeArray[stopIdx] - currentCum).toFixed(2)),
-            flags: ['review'] // Mark as review for rule pipeline
-        };
-
-        if (hitWall) {
-            result.flags?.push('reset');
-        }
-
-        return result;
+        if (results.length === 0) return null;
+        if (results.length === 1) return results[0];
+        return results;
     }
 }

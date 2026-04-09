@@ -20,5 +20,5 @@ export interface IMovementStrategy {
         state: TrackState,
         context: PlanContext,
         config: Record<string, any>
-    ): StepResult | null;
+    ): StepResult | StepResult[] | null;
 }

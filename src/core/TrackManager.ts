@@ -29,6 +29,7 @@ export interface ManagerConfig {
     // Pedagogical constraints
     maxAyahPerDay?: number;
     sequentialSurahMode?: boolean;
+    strictSequentialMode?: boolean;      // If true, never jump surah until 100% complete
     consolidationDayInterval?: number; // Every N days, no new hifz (only review)
 }
 
@@ -194,14 +195,16 @@ export class TrackManager {
                     (track as any).config.dailyLines = originalLines;
                 }
 
-                if (rawStep) {
+                const rawSteps = Array.isArray(rawStep) ? rawStep : (rawStep ? [rawStep] : []);
+
+                for (const rs of rawSteps) {
                     // Epic 2: Pass candidate through rule pipeline
                     const candidate: RuleCandidate = {
-                        start: rawStep.start,
-                        proposedEnd: rawStep.end,
-                        targetLines: rawStep.linesProcessed,
+                        start: rs.start,
+                        proposedEnd: rs.end,
+                        targetLines: rs.linesProcessed,
                         isReverse: this.config.isReverse,
-                        flags: rawStep.flags  // Pass flags to identify review tracks
+                        flags: rs.flags  // Pass flags to identify review tracks
                     };
 
                     const ruleContext: RuleContext = {
@@ -210,7 +213,8 @@ export class TrackManager {
                         snapThresholdLines: 7, // default threshold
                         // 🧠 Pedagogical constraints
                         maxAyahPerDay: this.config.maxAyahPerDay,
-                        sequentialSurahMode: this.config.sequentialSurahMode
+                        sequentialSurahMode: this.config.sequentialSurahMode,
+                        strictSequentialMode: this.config.strictSequentialMode
                     };
 
                     const ruleResult = this.ruleEngine.evaluate(candidate, ruleContext);
@@ -219,8 +223,8 @@ export class TrackManager {
                     const approvedIdx = this.quranRepo.getIndexFromLocation(ruleResult.approvedEnd.surah, ruleResult.approvedEnd.ayah, this.config.isReverse);
                     const finalLines = this.quranRepo.getLinesBetween(candidate.start, ruleResult.approvedEnd, this.config.isReverse);
                     
-                    const step: typeof rawStep = {
-                        ...rawStep,
+                    const step: typeof rs = {
+                        ...rs,
                         end: ruleResult.approvedEnd,
                         endIdx: approvedIdx,
                         linesProcessed: finalLines,
@@ -235,18 +239,26 @@ export class TrackManager {
 
                     // 🚀 NEW: Generic Event Creation
                     // Determines event type based on track type/name logic
-                    // (Simplification: assuming 'linear' = MEMORIZATION, others = REVIEW)
-                    // You can enhance this mapping logic later.
                     let eType = EventType.REVIEW;
                     if (track.type === 'linear') eType = EventType.MEMORIZATION;
+
+                    // Correct Canonical Order: Reverse direction tracks moving backwards
+                    // Review tracks should display seamlessly in Mushaf order.
+                    let eStart = step.start;
+                    let eEnd = step.end;
+                    
+                    if (track.type === 'looping' && this.config.isReverse) {
+                        eStart = step.end;
+                        eEnd = step.start;
+                    }
 
                     const event: PlanEvent = {
                         trackId: track.id,
                         trackName: track.name,
                         eventType: eType,
                         data: {
-                            start: step.start,
-                            end: step.end,
+                            start: eStart,
+                            end: eEnd,
                             lines: step.linesProcessed,
                             is_reset: step.flags?.includes('reset')
                         }
