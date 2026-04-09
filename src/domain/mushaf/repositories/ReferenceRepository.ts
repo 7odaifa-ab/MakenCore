@@ -9,7 +9,7 @@ import {
     RAW_CUMULATIVE_ARRAY_REVERSE,
     INDEX_MAP_REVERSE,
     REVERSE_INDEX_REVERSE 
-} from '../../../data/QuranStaticData';
+} from '../../../data/CanonicalQuranData';
 import { findExponentialStopIndex } from '../../../utils/Algorithms';
 
 export interface DirectionData {
