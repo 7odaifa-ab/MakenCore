@@ -108,27 +108,50 @@ export class PlanExporter {
     }
 
     printToConsole(plan: PlanDay[]) {
-        console.log("\n📋 معاينة الخطة (Dynamic View):");
+        console.log("\n");
+        console.log("=".repeat(50));
+        console.log("   Quran Planning Engine - Daily Plan");
         console.log("=".repeat(50));
         
+        const daysAr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
         plan.forEach(day => {
-            console.log(`📅 يوم ${day.dayNum} | ${day.date.toISOString().split('T')[0]}`);
+            const dayName = daysAr[day.date.getDay()];
+            console.log(`\n   Day ${day.dayNum} | ${day.date.toISOString().split('T')[0]} (${dayName})`);
+            console.log("   ".repeat(15));
             
-            // 🚀 Iterate through events generically
             if (day.events.length === 0) {
-                console.log("   (يوم راحة أو لا توجد مهام)");
+                console.log("   (Rest day - no tasks)");
             } else {
                 day.events.forEach(evt => {
-                    let icon = '🔹';
-                    if (evt.trackId === TrackId.HIFZ) icon = '📗';
-                    else if (evt.trackId === TrackId.MINOR_REVIEW) icon = '📘';
-                    else if (evt.trackId === TrackId.MAJOR_REVIEW) icon = '📙';
+                    let icon = '   ';
+                    let trackType = '';
+                    
+                    if (evt.trackId === TrackId.HIFZ) {
+                        icon = '   ';
+                        trackType = 'New Memorization';
+                    }
+                    else if (evt.trackId === TrackId.MINOR_REVIEW) {
+                        icon = '   ';
+                        trackType = 'Minor Review';
+                    }
+                    else if (evt.trackId === TrackId.MAJOR_REVIEW) {
+                        icon = '   ';
+                        trackType = 'Major Review';
+                    }
 
-                    const resetStr = evt.data.is_reset ? '🔄' : '';
-                    console.log(`   ${icon} ${evt.trackName}: ${this.formatLoc(evt.data.start)} ⬅️ ${this.formatLoc(evt.data.end)} ${resetStr}`);
+                    const resetStr = evt.data.is_reset ? ' [RESET]' : '';
+                    const formattedStart = this.formatLoc(evt.data.start);
+                    const formattedEnd = this.formatLoc(evt.data.end);
+                    
+                    console.log(`   ${icon} ${trackType}: ${formattedStart} -> ${formattedEnd}${resetStr}`);
                 });
             }
-            console.log("-".repeat(30));
+            console.log("   " + "-".repeat(45));
         });
+        
+        console.log("\n" + "=".repeat(50));
+        console.log("   End of Plan Preview");
+        console.log("=".repeat(50));
     }
 }

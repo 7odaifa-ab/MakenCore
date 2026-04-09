@@ -80,7 +80,11 @@ export class PlanBuilder {
             daysPerWeek: this.scheduleConfig.daysPerWeek,
             limitDays: this.scheduleConfig.limitDays || 0,
             endDate: this.scheduleConfig.endDate,
-            isReverse: this.scheduleConfig.isReverse || false
+            isReverse: this.scheduleConfig.isReverse || false,
+            // 🧠 Pedagogical constraints
+            maxAyahPerDay: this.scheduleConfig.maxAyahPerDay,
+            sequentialSurahMode: this.scheduleConfig.sequentialSurahMode,
+            consolidationDayInterval: this.scheduleConfig.consolidationDayInterval
         }, repository); // 👈 Passing the dependency
 
         const context = { isReverse: this.scheduleConfig.isReverse || false };

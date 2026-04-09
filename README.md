@@ -9,6 +9,7 @@
 - **Deterministic Scheduling:** Multi-track (Hifz, Minor Review, Major Review) load balancing and rule-driven event generation.
 - **Canonical Dataset Validation:** Leverages an $O(1)$ directional prefix-sum indexing system using the ground-truth Hafs v18 script for mathematically sound page and thematic bounds.
 - **Rule Pipeline:** `RuleEngine` architecture enforces `AyahIntegrity`, `SurahSnap` to `<7 lines`, `PageAlignment`, and `ThematicHalting`.
+- **Pedagogical Constraints (NEW):** `MaxAyahRule`, `SurahCompletionRule`, and `ConsolidationDayInterval` for retention-optimized planning.
 - **Stateless Operation:** Pure JSON-in (`CreatePlanPreviewRequestDTO`), JSON-out (`CreatePlanPreviewResponseDTO`).
 
 ---
@@ -61,7 +62,15 @@ import { PlanBuilder, WindowMode } from 'maken-core';
 
 const builder = new PlanBuilder();
 const manager = builder
-    .setSchedule({ startDate: "2026-03-30", daysPerWeek: 5, isReverse: false })
+    .setSchedule({ 
+        startDate: "2026-03-30", 
+        daysPerWeek: 5, 
+        isReverse: false,
+        // Pedagogical constraints for retention-optimized planning
+        maxAyahPerDay: 10,
+        sequentialSurahMode: true,
+        consolidationDayInterval: 6
+    })
     .addHifz(15, { surah: 2, ayah: 1 })
     .addMinorReview(5, WindowMode.GRADUAL)
     .stopWhenCompleted()
@@ -83,6 +92,19 @@ PDF and formal Excel generation are **out of scope** for this engine to prevent 
 
 ### 2. Database Persistence
 Your backend should persist MakenCore's output. A complete [Prisma Schema Strategy Matrix](doc/planning-engine-prisma-schema-draft.md) is included in the documentation folder to help you instantly map MakenCore's events to PostgreSQL.
+
+---
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the `/doc` folder:
+
+| Document | Purpose |
+|----------|---------|
+| [API Contracts](doc/planning-engine/planning-engine-api-contracts.md) | HTTP API and TypeScript interfaces |
+| [Pedagogical Rules Guide](doc/planning-engine/pedagogical-rules-guide.md) | **NEW:** MaxAyahRule, SurahCompletionRule, ConsolidationDays configuration |
+| [PRD](doc/planning-engine/planning-engine-prd.md) | Product Requirements & architecture |
+| [Epic](doc/planning-engine/epic.md) | Technical epic and implementation roadmap |
 
 ---
 

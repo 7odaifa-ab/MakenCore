@@ -52,10 +52,10 @@ export class LinearStrategy implements IMovementStrategy {
             start: context.quranRepo.getLocationFromIndex(currentIdx, context.indexMap),
             end: context.quranRepo.getLocationFromIndex(stopIdx, context.indexMap),
             linesProcessed: parseFloat((context.cumulativeArray[stopIdx] - currentCum).toFixed(2)),
-            flags: []
+            flags: ['memorization'] // Mark as memorization for rule pipeline
         };
 
-        // 5. 🏁 COMPLETION FLAG
+        // 5. COMPLETION FLAG
         // If we reached (or exceeded) the effective max, mark as completed.
         if (stopIdx >= effectiveMax) {
             result.flags?.push('completed');

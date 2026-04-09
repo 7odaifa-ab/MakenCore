@@ -79,30 +79,35 @@ Flags:
             const manager = builder
                 .setSchedule({
                     startDate: "2026-02-01",
-                    daysPerWeek: 5,          // \u0627\u0644\u0623\u062d\u062f - \u0627\u0644\u062e\u0645\u064a\u0633
-                    limitDays: 30,            // 0 = \u0627\u0633\u062a\u0645\u0631 \u062d\u062a\u0649 \u0627\u0644\u062a\u0648\u0642\u0641 \u0627\u0644\u062a\u0644\u0642\u0627\u0626\u064a
-                    isReverse: true
+                    daysPerWeek: 5,          // Sun-Thu
+                    limitDays: 30,            // 0 = unlimited
+                    isReverse: true,
+                    // Pedagogical constraints for human-optimized planning
+                    maxAyahPerDay: 10,        // Hard cap: never exceed 10 ayahs/day
+                    sequentialSurahMode: true, // Complete surah before jumping
+                    consolidationDayInterval: 6  // Every 6th day = review only (no hifz)
                 })
-                // \ud83c\udfaf \u0633\u064a\u0646\u0627\u0631\u064a\u0648: \u062d\u0641\u0638 \u0633\u0648\u0631\u0629 \u0627\u0644\u0628\u0642\u0631\u0629 \u0645\u0639 \u0645\u0631\u0627\u062c\u0639\u0629
+                // Scenario: Memorization with review
                 .addHifz(
                     10,                        // lines per day
                     { surah: 66, ayah: 1 }     // from Surah At-Tahrim
                 )
-                .addMinorReview(5, WindowMode.GRADUAL)            // \u0645\u0631\u0627\u062c\u0639\u0629 5 \u062f\u0631\u0648\u0633 (\u0635\u063a\u0631\u0649)
-                .addMajorReview(15 * 20, { surah: 67, ayah: 1 })           // \u0645\u0631\u0627\u062c\u0639\u0629 20 \u0648\u062c\u0647 (\u0643\u0628\u0631\u0649)
-                .stopWhenCompleted()          // \ud83d\udeab \u062a\u0641\u0639\u064a\u0644 \u0627\u0644\u062a\u0648\u0642\u0641 \u0627\u0644\u0630\u0643\u064a
+                .addMinorReview(5, WindowMode.GRADUAL)            // 5 lessons minor review
+                .addMajorReview(15 * 20, { surah: 114, ayah: 1 })           // 20 pages major review (from end for reverse planning)
+                .stopWhenCompleted()          // Stop when hifz track completes
                 .build();
 
-            // 2. \u0627\u0644\u062a\u0648\u0644\u064a\u062f (Simulation Phase)
-            console.time("\u23f1\ufe0f  \u0632\u0645\u0646 \u0627\u0644\u062a\u0648\u0644\u064a\u062f");
+            // 2. Generation (Simulation Phase)
+            console.time("Generation Time");
             const plan = manager.generatePlan();
-            console.timeEnd("\u23f1\ufe0f  \u0632\u0645\u0646 \u0627\u0644\u062a\u0648\u0644\u064a\u062f");
+            console.timeEnd("Generation Time");
 
-            console.log(`\u2705 \u062a\u0645 \u062a\u0648\u0644\u064a\u062f ${plan.length} \u064a\u0648\u0645 (\u062a\u0648\u0642\u0641\u062a \u0627\u0644\u062e\u0637\u0629 \u0639\u0646\u062f \u0627\u0643\u062a\u0645\u0627\u0644 \u0627\u0644\u0647\u062f\u0641).\n`);
+            console.log(`تم توليد ${plan.length} يوم (توقت الخطة عند اكتمال الهدف).\n`);
 
-            // 3. \u0627\u0644\u062a\u0635\u062f\u064a\u0631 \u0648\u0627\u0644\u0639\u0631\u0636 (Exporter handles dynamic events now)
+            // 3. التصدير والعرض (Exporter handles dynamic events now)
             const exporter = new PlanExporter();
 
+            // أ) العرض في الكونسول للتأكد
             // \u0623) \u0627\u0644\u0639\u0631\u0636 \u0641\u064a \u0627\u0644\u0643\u0648\u0646\u0633\u0648\u0644 \u0644\u0644\u062a\u062d\u0642\u0642 \u0627\u0644\u0633\u0631\u064a\u0639
             if (!isExcelMode) {
                 exporter.printToConsole(plan);

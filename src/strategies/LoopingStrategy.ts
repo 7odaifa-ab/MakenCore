@@ -69,7 +69,7 @@ export class LoopingStrategy implements IMovementStrategy {
             start: context.quranRepo.getLocationFromIndex(currentIdx, context.indexMap),
             end: context.quranRepo.getLocationFromIndex(stopIdx, context.indexMap),
             linesProcessed: parseFloat((context.cumulativeArray[stopIdx] - currentCum).toFixed(2)),
-            flags: []
+            flags: ['review'] // Mark as review for rule pipeline
         };
 
         if (hitWall) {

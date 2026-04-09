@@ -12,6 +12,13 @@ export class ThematicHaltingRule implements PlanningRule {
 
         const repo = context.repository;
         const currentEnd = candidate.proposedEnd;
+        
+        // 🧠 Skip for short surahs (<50 ayahs) - prevents over-segmentation
+        const surahAyahCount = repo.getAyahCount(currentEnd.surah);
+        if (surahAyahCount < 50) {
+            return { approvedEnd: candidate.proposedEnd };
+        }
+        
         const currentIndex = repo.getIndexFromLocation(currentEnd.surah, currentEnd.ayah, candidate.isReverse);
         const dirMap = repo.getDirectionData(candidate.isReverse);
 

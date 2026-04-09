@@ -42,6 +42,14 @@ export interface ScheduleConfig {
     isReverse?: boolean;     // false = Fatiha→Nas, true = Nas→Fatiha
     catchUpDayOfWeek?: number; // Optional catch-up day index (0-6)
     
+    // PEDAGOGICAL CONSTRAINTS (for human-optimized planning)
+    /** Maximum ayahs per day (default: 10, recommended: 5-15) */
+    maxAyahPerDay?: number;
+    /** Complete surah before jumping to next (default: false) */
+    sequentialSurahMode?: boolean;
+    /** Every N days, take a consolidation day (no new hifz, only review) */
+    consolidationDayInterval?: number;
+    
     // NOTE: Stop conditions are NOT defined here to keep ScheduleConfig pure.
     // Use PlanBuilder methods (e.g., .stopWhenCompleted()) instead.
 }

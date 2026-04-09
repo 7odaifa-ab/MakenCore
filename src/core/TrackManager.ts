@@ -9,6 +9,8 @@ import { EventType } from './constants'; // Import Enum
 import { RuleEngine } from '../domain/planning/rules/RuleEngine';
 import { RuleContext, RuleCandidate } from '../domain/planning/rules/RuleInterface';
 import { AyahIntegrityRule } from '../domain/planning/rules/handlers/AyahIntegrityRule';
+import { MaxAyahRule } from '../domain/planning/rules/handlers/MaxAyahRule';
+import { SurahCompletionRule } from '../domain/planning/rules/handlers/SurahCompletionRule';
 import { SurahSnapRule } from '../domain/planning/rules/handlers/SurahSnapRule';
 import { PageAlignmentRule } from '../domain/planning/rules/handlers/PageAlignmentRule';
 import { BalanceCorrectionRule, ThematicHaltingRule } from '../domain/planning/rules/handlers/OtherRules';
@@ -24,6 +26,10 @@ export interface ManagerConfig {
     isReverse: boolean;
     catchUpDayOfWeek?: number; // Epic 3
     holidays?: string[];       // Epic 3: 'YYYY-MM-DD'
+    // Pedagogical constraints
+    maxAyahPerDay?: number;
+    sequentialSurahMode?: boolean;
+    consolidationDayInterval?: number; // Every N days, no new hifz (only review)
 }
 
 export type StopCondition = (tracks: Map<number, ITrack>) => boolean;
@@ -53,11 +59,14 @@ export class TrackManager {
         this.constraintManager = new ConstraintManager();
         this.ruleEngine = new RuleEngine([
             new AyahIntegrityRule(),
+            new SurahCompletionRule(), // 🧠 Pedagogical: complete surah before jumping (runs early)
             new SurahSnapRule(),
             new PageAlignmentRule(),
             new ThematicHaltingRule(),
-            new BalanceCorrectionRule()
+            new BalanceCorrectionRule(),
+            new MaxAyahRule()         // 🧠 Pedagogical: max ayahs per day (runs LAST - hard cap)
         ]);
+        console.log('[TrackManager] Rule order:', this.ruleEngine.getRuleNamesInOrder());
     }
 
     addTrack(track: ITrack) {
@@ -158,11 +167,20 @@ export class TrackManager {
                 allowances.forEach(a => trackAllowances.set(a.trackId, a.allowedLines));
             }
 
+            // Check if today is a consolidation day (no new hifz, only review)
+            const isConsolidationDay = this.config.consolidationDayInterval !== undefined && 
+                                      (dayCounter % this.config.consolidationDayInterval === 0);
+
             // Execute tracks in ascending id order — enforces HIFZ(1)→MINOR(2)→MAJOR(3).
             // WindowStrategy depends on Hifz history already being committed before it runs.
             // Sorting here makes that invariant explicit and safe regardless of addTrack() order.
             for (const track of [...this.tracks.values()].sort((a, b) => a.id - b.id)) {
                 
+                // 🧠 Skip Hifz on consolidation days (only review allowed)
+                if (isConsolidationDay && track.type === 'linear') {
+                    continue;
+                }
+
                 // If there's a dynamic allowance, override the track config temporarily
                 const originalLines = (track as any).config.dailyLines;
                 if (trackAllowances.has(track.id)) {
@@ -189,7 +207,10 @@ export class TrackManager {
                     const ruleContext: RuleContext = {
                         repository: ReferenceRepository.getInstance(),
                         trackId: track.id,
-                        snapThresholdLines: 7 // default threshold
+                        snapThresholdLines: 7, // default threshold
+                        // 🧠 Pedagogical constraints
+                        maxAyahPerDay: this.config.maxAyahPerDay,
+                        sequentialSurahMode: this.config.sequentialSurahMode
                     };
 
                     const ruleResult = this.ruleEngine.evaluate(candidate, ruleContext);

@@ -25,7 +25,10 @@ export interface RuleContext {
     repository: ReferenceRepository;
     trackId: string | number;
     // Any future config (like snap thresholds) can go here
-    snapThresholdLines: number; 
+    snapThresholdLines: number;
+    // Pedagogical constraints
+    maxAyahPerDay?: number;
+    sequentialSurahMode?: boolean;
 }
 
 export interface PlanningRule {
