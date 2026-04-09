@@ -9,6 +9,8 @@
   "files": [
     "dist",
     "README.md",
+    "README.ar.md",
+    "USER_GUIDE.md",
     "LICENSE"
   ],
   "engines": {
@@ -18,6 +20,8 @@
     "build": "tsc",
     "build:clean": "rmdir /s /q dist 2>nul & tsc",
     "start": "ts-node src/main.ts",
+    "start:json": "ts-node src/main.ts --json",
+    "start:excel": "ts-node src/main.ts --excel",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:legacy": "ts-node src/tests/planErrors.test.ts",

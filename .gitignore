@@ -6,3 +6,5 @@ dist/
 *.txt
 src/debug_issues.ts
 data/students/
+src/dev/
+src/json-output-example.ts

@@ -110,7 +110,7 @@ export class ExcelExportAdapter {
 
             const row = worksheet.addRow(rowData);
             row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-            
+
             // Grouping color shade
             if (day.dayNum % 2 === 0) {
                 row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F4F4' } };

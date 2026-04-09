@@ -10,6 +10,11 @@ export class PageAlignmentRule implements PlanningRule {
     priority = 30;
 
     apply(candidate: RuleCandidate, context: RuleContext): RuleResult {
+        // Skip for review tracks - preserve full lesson boundaries
+        if (candidate.flags?.includes('review')) {
+            return { approvedEnd: candidate.proposedEnd };
+        }
+
         const repo = context.repository;
         const currentEnd = candidate.proposedEnd;
 

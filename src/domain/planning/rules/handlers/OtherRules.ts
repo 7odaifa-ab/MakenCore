@@ -5,6 +5,11 @@ export class ThematicHaltingRule implements PlanningRule {
     priority = 40;
 
     apply(candidate: RuleCandidate, context: RuleContext): RuleResult {
+        // Skip for review tracks - preserve full lesson boundaries
+        if (candidate.flags?.includes('review')) {
+            return { approvedEnd: candidate.proposedEnd };
+        }
+
         const repo = context.repository;
         const currentEnd = candidate.proposedEnd;
         const currentIndex = repo.getIndexFromLocation(currentEnd.surah, currentEnd.ayah, candidate.isReverse);
@@ -50,6 +55,11 @@ export class BalanceCorrectionRule implements PlanningRule {
     priority = 50;
 
     apply(candidate: RuleCandidate, context: RuleContext): RuleResult {
+        // Skip correction for review steps - they use lesson boundaries, not line targets
+        if (candidate.flags?.includes('review')) {
+            return { approvedEnd: candidate.proposedEnd };
+        }
+
         const repo = context.repository;
         const dirData = repo.getDirectionData(candidate.isReverse);
 

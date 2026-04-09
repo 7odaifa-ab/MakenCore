@@ -182,7 +182,8 @@ export class TrackManager {
                         start: rawStep.start,
                         proposedEnd: rawStep.end,
                         targetLines: rawStep.linesProcessed,
-                        isReverse: this.config.isReverse
+                        isReverse: this.config.isReverse,
+                        flags: rawStep.flags  // Pass flags to identify review tracks
                     };
 
                     const ruleContext: RuleContext = {

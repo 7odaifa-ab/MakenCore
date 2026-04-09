@@ -12,6 +12,7 @@ export interface RuleCandidate {
     proposedEnd: LocationObj;
     targetLines: number;    // The original requested line count
     isReverse: boolean;     // Direction of memorization
+    flags?: string[];       // Optional flags like 'review' to identify track type
 }
 
 export interface RuleResult {
