@@ -11,6 +11,8 @@ export enum PlanErrorCode {
     /** build() called without prior setSchedule(). */
     MISSING_SCHEDULE = 'MISSING_SCHEDULE',
 
+    INVALID_INPUT = 'INVALID_INPUT',
+
     /** Tried to mix HIFZ and WERD ecosystems in the same plan. */
     MODE_MIXING = 'MODE_MIXING',
 

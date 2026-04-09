@@ -7,14 +7,17 @@ export function createIntermediateScenario(): TrackManager {
         .setSchedule({
             startDate: '2026-02-01',
             daysPerWeek: 5,
-            limitDays: 90,
             isReverse: true,
             maxAyahPerDay: 8,
             sequentialSurahMode: true,
             strictSequentialMode: false,
             consolidationDayInterval: 6
         })
-        .addHifz(10, { surah: 66, ayah: 1 })
+        .planByDuration({
+            from: { surah: 66, ayah: 1 },
+            to: { surah: 56, ayah: 96 },
+            durationDays: 90
+        })
         .addMinorReview(5, WindowMode.GRADUAL)
         .addMajorReview(15 * 8, { surah: 114, ayah: 1 })
         .stopWhenCompleted()

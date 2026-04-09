@@ -1,6 +1,13 @@
 // src/builders/PlanBuilder.ts
 import { TrackManager } from '../core/TrackManager';
-import { PlanMode, ScheduleConfig, LocationConfig, TrackRequest } from './PlanTypes';
+import {
+    PlanMode,
+    ScheduleConfig,
+    LocationConfig,
+    TrackRequest,
+    CompletionByDurationConfig,
+    CompletionByDailyAmountConfig
+} from './PlanTypes';
 import { HifzSystem } from './HifzSystem';
 import { QuranRepository } from '../core/QuranRepository';
 import { WindowMode, TrackId } from '../core/constants';
@@ -9,7 +16,7 @@ import { PlanError, PlanErrorCode, Severity } from '../errors';
 /**
  * PlanBuilder
  * * Fluent API for building complex plans.
- * * 🚀 REFACTORED: Injects QuranRepository into TrackManager.
+ * * REFACTORED: Injects QuranRepository into TrackManager.
  */
 export class PlanBuilder {
     private requests: TrackRequest[] = [];
@@ -17,8 +24,100 @@ export class PlanBuilder {
     private currentMode: PlanMode = 'NONE';
     private stopOnCompletion: boolean = false;
 
-    // ... (setSchedule, addHifz, addMinor, addMajor methods remain same) ...
-    // Note: Ensure addHifz/addMinor methods are unchanged, omitted here for brevity
+    private getScheduleOrThrow(): ScheduleConfig {
+        if (!this.scheduleConfig) {
+            throw new PlanError(
+                PlanErrorCode.MISSING_SCHEDULE,
+                Severity.ERROR,
+                'يجب استدعاء setSchedule() قبل تحديد وضع الخطة.'
+            );
+        }
+
+        return this.scheduleConfig;
+    }
+
+    private getStudyDaysWithinDuration(durationDays: number, daysPerWeek: number): number {
+        if (durationDays <= 0) {
+            throw new PlanError(
+                PlanErrorCode.INVALID_INPUT,
+                Severity.ERROR,
+                'مدة الخطة يجب أن تكون أكبر من صفر.',
+                { durationDays }
+            );
+        }
+
+        if (daysPerWeek <= 0 || daysPerWeek > 7) {
+            throw new PlanError(
+                PlanErrorCode.INVALID_INPUT,
+                Severity.ERROR,
+                'عدد أيام الدراسة في الأسبوع يجب أن يكون بين 1 و 7.',
+                { daysPerWeek }
+            );
+        }
+
+        return Math.max(1, Math.ceil((durationDays * daysPerWeek) / 7));
+    }
+
+    private replaceFirstHifzRequest(amountLines: number, startLocation: LocationConfig, endLocation: LocationConfig): void {
+        const hifzIndex = this.requests.findIndex((req) => req.type === 'HIFZ');
+
+        if (hifzIndex >= 0) {
+            this.requests[hifzIndex] = {
+                type: 'HIFZ',
+                params: { amountLines, startLocation, endLocation }
+            };
+            return;
+        }
+
+        this.requests.push({
+            type: 'HIFZ',
+            params: { amountLines, startLocation, endLocation }
+        });
+    }
+
+    public planByDuration(config: CompletionByDurationConfig): PlanBuilder {
+        const schedule = this.getScheduleOrThrow();
+        const repo = QuranRepository.getInstance();
+        const totalLines = repo.getLinesBetween(config.from, config.to, schedule.isReverse ?? false);
+        const studyDays = this.getStudyDaysWithinDuration(config.durationDays, schedule.daysPerWeek);
+        const derivedDailyLines = Math.max(1, Math.ceil(totalLines / studyDays));
+
+        this.scheduleConfig = {
+            ...schedule,
+            limitDays: config.durationDays
+        };
+
+        this.replaceFirstHifzRequest(derivedDailyLines, config.from, config.to);
+        this.currentMode = 'HIFZ_ECOSYSTEM';
+        return this;
+    }
+
+    public planByDailyAmount(config: CompletionByDailyAmountConfig): PlanBuilder {
+        const schedule = this.getScheduleOrThrow();
+        const repo = QuranRepository.getInstance();
+
+        if (config.dailyLines <= 0) {
+            throw new PlanError(
+                PlanErrorCode.INVALID_INPUT,
+                Severity.ERROR,
+                'الكمية اليومية يجب أن تكون أكبر من صفر.',
+                { dailyLines: config.dailyLines }
+            );
+        }
+
+        const totalLines = repo.getLinesBetween(config.from, config.to, schedule.isReverse ?? false);
+        const studyDaysNeeded = Math.max(1, Math.ceil(totalLines / config.dailyLines));
+        const calendarDaysNeeded = Math.max(1, Math.ceil((studyDaysNeeded * 7) / schedule.daysPerWeek));
+
+        this.scheduleConfig = {
+            ...schedule,
+            limitDays: calendarDaysNeeded
+        };
+
+        this.replaceFirstHifzRequest(config.dailyLines, config.from, config.to);
+        this.currentMode = 'HIFZ_ECOSYSTEM';
+        return this;
+    }
 
     public setSchedule(config: ScheduleConfig): PlanBuilder {
         this.scheduleConfig = config;

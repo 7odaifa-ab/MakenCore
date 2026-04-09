@@ -43,8 +43,14 @@ The engine uses a **rule pipeline** to process each step. Rules run in priority 
 4. PageAlignmentRule     (priority 30) - Snap to page boundaries
 5. ThematicHaltingRule   (priority 40) - Snap to thematic breaks (hizb/juz)
 6. BalanceCorrectionRule (priority 50) - Adjust to target line count
-7. MaxAyahRule           (priority 55) - **Hard cap** (runs LAST)
+7. MaxAyahRule           (priority 55) - Final ayah-limit correction within the full rule pipeline
 ```
+
+#### Interpretation Note
+
+`maxAyahPerDay` should be interpreted within the complete rule pipeline.
+
+If an earlier rule preserves a stronger invariant required by engine design, a naive standalone reading of raw ayah count may not fully explain the final boundary. QA should therefore evaluate final steps in the context of the ordered rule set rather than treating `MaxAyahRule` as an isolated metric.
 
 #### Step Flags
 Tracks mark steps with flags for rule pipeline awareness:
@@ -331,12 +337,12 @@ For direct library usage without HTTP API:
 
 ### Installation
 ```bash
-npm install @maken/core
+npm install maken-core
 ```
 
 ### Quick Start
 ```typescript
-import { PlanBuilder, WindowMode, QuranRepository } from '@maken/core';
+import { PlanBuilder, WindowMode } from 'maken-core';
 
 const builder = new PlanBuilder();
 
@@ -344,14 +350,17 @@ const manager = builder
   .setSchedule({
     startDate: "2026-02-01",
     daysPerWeek: 5,
-    limitDays: 10,
     isReverse: true,
     // Pedagogical constraints
     maxAyahPerDay: 10,
     sequentialSurahMode: true,
     consolidationDayInterval: 6
   })
-  .addHifz(10, { surah: 66, ayah: 1 })
+  .planByDuration({
+    from: { surah: 66, ayah: 1 },
+    to: { surah: 58, ayah: 8 },
+    durationDays: 30
+  })
   .addMinorReview(5, WindowMode.GRADUAL)
   .addMajorReview(15 * 20, { surah: 67, ayah: 1 })
   .stopWhenCompleted()
@@ -360,12 +369,72 @@ const manager = builder
 const plan = manager.generatePlan();
 ```
 
+### Official Builder Planning Modes
+
+ `PlanBuilder` now supports two official hifz-planning entry points.
+
+ #### `planByDuration(...)`
+
+ Use when the caller knows the target Quran range and the available duration.
+
+ ```typescript
+ const manager = new PlanBuilder()
+   .setSchedule({
+     startDate: '2026-02-01',
+     daysPerWeek: 5,
+     isReverse: true,
+     maxAyahPerDay: 5,
+     sequentialSurahMode: true,
+     strictSequentialMode: true,
+     consolidationDayInterval: 5
+   })
+   .planByDuration({
+     from: { surah: 66, ayah: 1 },
+     to: { surah: 58, ayah: 8 },
+     durationDays: 30
+   })
+   .build();
+ ```
+
+ This mode derives:
+
+ - daily hifz amount in lines
+ - matching plan limit in calendar days
+
+ #### `planByDailyAmount(...)`
+
+ Use when the caller knows the target Quran range and the desired daily amount.
+
+ ```typescript
+ const manager = new PlanBuilder()
+   .setSchedule({
+     startDate: '2026-02-01',
+     daysPerWeek: 6,
+     isReverse: true,
+     maxAyahPerDay: 12,
+     sequentialSurahMode: true,
+     strictSequentialMode: false,
+     consolidationDayInterval: 7
+   })
+   .planByDailyAmount({
+     from: { surah: 66, ayah: 1 },
+     to: { surah: 55, ayah: 78 },
+     dailyLines: 14
+   })
+   .build();
+ ```
+
+ This mode derives:
+
+ - required study days
+ - matching plan limit in calendar days
+
 ### ScheduleConfig Interface
 ```typescript
 interface ScheduleConfig {
   startDate: string;           // ISO date (YYYY-MM-DD)
   daysPerWeek: number;         // 1-7
-  limitDays?: number;          // Max days to generate
+  limitDays?: number;          // Optional manual cap; planning modes may derive it automatically
   isReverse?: boolean;         // true=from end, false=from start
   
   // Pedagogical Constraints (NEW)
@@ -410,7 +479,7 @@ const completionMode = {
 For fine-grained control, you can configure individual rules:
 
 ```typescript
-import { RuleEngine, MaxAyahRule, SurahCompletionRule } from '@maken/core';
+import { RuleEngine, MaxAyahRule, SurahCompletionRule } from 'maken-core';
 
 // Custom rule engine with modified priorities
 const engine = new RuleEngine([

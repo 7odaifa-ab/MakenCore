@@ -16,19 +16,19 @@ export const scenarios: ScenarioDefinition[] = [
     {
         key: 'beginner',
         title: 'Beginner',
-        description: 'Low daily load with strict surah continuity and frequent consolidation.',
+        description: 'Duration-driven beginner plan: derive daily load from a fixed 30-day target with strict surah continuity.',
         create: createBeginnerScenario
     },
     {
         key: 'intermediate',
         title: 'Intermediate',
-        description: 'Balanced memorization and review for the average committed student.',
+        description: 'Duration-driven intermediate plan: derive daily load from a fixed 90-day target with balanced review.',
         create: createIntermediateScenario
     },
     {
         key: 'advanced',
         title: 'Advanced',
-        description: 'Higher pace for strong students with stable review capacity.',
+        description: 'Daily-amount-driven advanced plan: derive required days from a stronger fixed daily workload.',
         create: createAdvancedScenario
     },
     {

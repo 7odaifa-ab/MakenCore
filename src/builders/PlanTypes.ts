@@ -32,6 +32,24 @@ export interface LocationConfig {
 }
 
 /**
+ * Configuration for completion by duration.
+ */
+export interface CompletionByDurationConfig {
+    from: LocationConfig;
+    to: LocationConfig;
+    durationDays: number;
+}
+
+/**
+ * Configuration for completion by daily amount.
+ */
+export interface CompletionByDailyAmountConfig {
+    from: LocationConfig;
+    to: LocationConfig;
+    dailyLines: number;
+}
+
+/**
  * Temporal configuration for the plan execution.
  */
 export interface ScheduleConfig {
