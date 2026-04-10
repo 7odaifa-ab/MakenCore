@@ -1,6 +1,6 @@
 {
   "name": "@zakhm_sa/makeen-core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Quran memorization planning engine — line-precise scheduling with mushaf spatial coordinates.",
   "author": "7odaifa-ab <hudaifa@zakhm.sa>",
   "contributors": [
@@ -11,9 +11,6 @@
     "url": "git+https://github.com/7odaifa-ab/MakeenCore.git"
   },
   "homepage": "https://github.com/7odaifa-ab/MakeenCore#readme",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "license": "ISC",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
