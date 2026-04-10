@@ -2,7 +2,15 @@
   "name": "maken-core",
   "version": "1.0.0",
   "description": "Quran memorization planning engine — line-precise scheduling with mushaf spatial coordinates.",
-  "author": "MakenCore Contributors",
+  "author": "7odaifa-ab <hudaifa@zakhm.sa>",
+  "contributors": [
+    "Mohammed AlFreidi (original author)"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/7odaifa-ab/MakenCore.git"
+  },
+  "homepage": "https://github.com/7odaifa-ab/MakenCore#readme",
   "license": "ISC",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

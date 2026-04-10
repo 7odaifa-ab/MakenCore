@@ -1,0 +1,36 @@
+# Source files (only dist/ is needed)
+src/
+prisma/
+
+tests/
+*.test.ts
+*.spec.ts
+
+# Scenarios (dev only)
+src/scenarios/
+src/test-epic4.ts
+src/main.ts
+
+# Data generation files (dev only, keep in repo but not npm)
+src/data/hafsData_v18.json
+src/data/quran-uthmani-min.sql
+src/data/quran-data.js
+src/data/README.md
+
+# Docs (dev only)
+doc/
+
+# Generated outputs (shouldn't be in repo)
+*.xlsx
+*.pdf
+~$*
+
+# Build artifacts
+tsconfig.json
+package-lock.json
+
+# Dev tools
+.git/
+.gitignore
+.vscode/
+node_modules/
