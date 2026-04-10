@@ -11,6 +11,9 @@
     "url": "git+https://github.com/7odaifa-ab/MakeenCore.git"
   },
   "homepage": "https://github.com/7odaifa-ab/MakeenCore#readme",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "license": "ISC",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
