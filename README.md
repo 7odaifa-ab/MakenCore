@@ -218,12 +218,12 @@ npm run test:vitest
 
 <div align="center">
 
-## Built with 💚 by Zakhm
+## Built with 💜 by Zakhm
 
 <table>
 <tr>
 <td width="100" align="center">
-<img src="https://via.placeholder.com/80x80/9cf/333?text=Z" alt="Zakhm Logo" width="80" height="80" style="border-radius: 12px;">
+<img src="https://github.com/user-attachments/assets/9223eb9d-920c-4ae6-8fb5-8ab3883ee105" alt="Zakhm Logo" width="80" height="80" style="border-radius: 12px;">
 </td>
 <td>
 
